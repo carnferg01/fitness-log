@@ -30,3 +30,9 @@ def get_contrast_color(hex_color):
 @register.filter
 def contrast_text(hex_color):
     return get_contrast_color(hex_color)
+
+
+
+@register.filter
+def get_item(dictionary, key):
+    return dictionary.get(key, '')

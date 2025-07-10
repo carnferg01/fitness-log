@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load custom_filters %}
 
 {% block title %}Add Activity{% endblock %}
 
@@ -7,16 +8,52 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Add New Activity</h1>
     <div>
-        <a href="{% url 'activity_add_from_file' %}" class="btn btn-primary">Upload file</a>
+        <form method="post" action="{% url 'activity_add_from_file' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" name="activity_file" accept=".tcx,.fit,.gpx" onchange="this.form.submit()" hidden id="uploadInput">
+            <button type="button" class="btn btn-primary" onclick="document.getElementById('uploadInput').click()">Upload file</button>
+        </form>
     </div>
 </div>
 
 <form method="post" class="card p-4 shadow-sm">
+    {% csrf_token %}
+    {# Render each field manually to add placeholder from 'placeholders' dict #}
+    {% for field in form %}
+      <div class="mb-3">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <input
+          type="{{ field.field.widget.input_type }}"
+          name="{{ field.html_name }}"
+          id="{{ field.id_for_label }}"
+          class="form-control{% if field.errors %} is-invalid{% endif %}"
+          placeholder="{{ placeholders|get_item:field.name|default:'' }}"
+          value="{{ field.value|default:'' }}"
+          {% if field.field.required %} required {% endif %}
+          {% for attr, val in field.field.widget.attrs.items %}
+            {{ attr }}="{{ val }}"
+          {% endfor %}
+        >
+        {% if field.help_text %}
+          <small class="form-text text-muted">{{ field.help_text }}</small>
+        {% endif %}
+        {% for error in field.errors %}
+          <div class="invalid-feedback">{{ error }}</div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+
+    <div class="d-flex justify-content-between mt-3">
+        <button type="submit" class="btn btn-success">Save</button>
+        <a href="{% url 'activity_list' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+{% comment %} <form method="post" class="card p-4 shadow-sm">
     {% csrf_token %}
     {{ form.as_p }}
     <div class="d-flex justify-content-between mt-3">
         <button type="submit" class="btn btn-success">Save</button>
         <a href="{% url 'activity_list' %}" class="btn btn-secondary">Cancel</a>
     </div>
-</form>
+</form> {% endcomment %}
 {% endblock %}

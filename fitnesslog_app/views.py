@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 
-from .models import Gear, GearCalculated, Sport, HRzones, Activity, Injury, Illness
+from .models import Gear, GearCalculated, Sport, HRzones, Activity, Injury, Illness, ActivityAuto
 from .forms import GearForm, SportForm, HRzonesForm, ActivityForm, InjuryForm, IllnessForm
 
 def summary(request):
@@ -138,15 +138,22 @@ def activity_list(request):
         activity.calories = activity.get_value('calories', 0)
     return render(request, 'activity_list.html', {'activity_list': activity_list})
 
-def activity_add(request):
-    if request.method == 'POST':
-        form = ActivityForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('activity_list')
-    else:
-        form = ActivityForm()
-    return render(request, 'activity_add.html', {'form': form})
+def activity_add(request, auto_id=None):
+    auto = None
+    placeholder_data  = {}
+
+    if auto_id:
+        auto = ActivityAuto.objects.filter(id=auto_id).first()
+        if auto:
+            # Pre-fill from extracted_data if form not submitted
+            placeholder_data  = {field.name: getattr(auto, field.name) for field in auto._meta.fields}
+            # {
+            #     'elapsed_time': auto.elapsed_time,
+            #     'distance': auto.distance,
+            #     # ... other fields
+            # }
+    form = ActivityForm()
+    return render(request, 'activity_add.html', {'form': form, 'placeholders': placeholder_data})
 
 def activity_edit(request, pk):
     activity = get_object_or_404(Activity, pk=pk)
@@ -165,6 +172,25 @@ def activity_delete(request, pk):
         activity.delete()
         return redirect('activity_list')  # change as needed
     return render(request, 'confirm_delete.html', {'activity': activity})
+
+def parse_file(file):
+    # Placeholder for actual file analysis logic
+    # Return a dictionary of extracted values
+    return {
+        #'elapsed_time': datetime.timedelta(minutes=45),
+        'distance': 10.2,
+        'calories': 560,
+    }
+
+def activity_add_from_file(request):
+    if request.method == 'POST' and 'activity_file' in request.FILES:
+        file = request.FILES['activity_file']
+        extracted = parse_file(file)
+
+        auto = ActivityAuto.objects.create(**extracted)
+
+        return redirect('activity_add', auto_id=auto.id)
+    return redirect('activity_add')
 
 
 ########################################################################
