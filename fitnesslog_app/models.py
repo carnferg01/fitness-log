@@ -23,9 +23,61 @@ class GearCalculated(models.Model):
     climb = models.FloatField(default=0.0)     # m
     session_count = models.IntegerField(default=0)
     
-
     def __str__(self):
         return f"{self.gear.nickname}: #{self.session_count} {self.distance}km  +{self.climb}m {self.first_used} - {self.last_used}"
+
+    def recalculate_all_gear():
+        # TODO: This should be make efficent using Django ORM aggregations
+        for gear in Gear.objects.all():
+            activities = gear.activities.select_related('auto')
+
+            total_distance = 0.0
+            total_climb = 0.0
+            first_used = None
+            last_used = None
+            count = 0
+
+            for activity in activities:
+                # Use field from Activity if not None, otherwise fall back to Activity.auto
+                auto = getattr(activity, 'auto', None)
+
+                # Choose distance
+                distance = (
+                    activity.distance if activity.distance is not None
+                    else (auto.distance if auto and auto.distance is not None else 0.0)
+                )
+                climb = (
+                    activity.elevation_gain if activity.elevation_gain is not None
+                    else (auto.elevation_gain if auto and auto.elevation_gain is not None else 0.0)
+                )
+
+                # Use start_datetime from Activity or fallback to Auto
+                start_dt = (
+                    activity.start_datetime if activity.start_datetime
+                    else (auto.start_datetime if auto else None)
+                )
+
+                # Update total fields
+                total_distance += distance
+                total_climb += climb
+                count += 1
+
+                # Update first/last used
+                if start_dt:
+                    if not first_used or start_dt < first_used:
+                        first_used = start_dt
+                    if not last_used or start_dt > last_used:
+                        last_used = start_dt
+
+            # Update or create GearCalculated
+            gc, _ = GearCalculated.objects.get_or_create(gear=gear)
+
+            gc.distance = total_distance
+            gc.climb = total_climb
+            gc.session_count = count
+            gc.first_used = first_used
+            gc.last_used = last_used
+            gc.save()
 
 class Sport(models.Model):
     id = models.AutoField(primary_key=True)

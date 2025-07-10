@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 
-from .models import Gear
+from .models import Gear, GearCalculated
 from .forms import GearForm
 
 def home(request):
@@ -39,8 +39,6 @@ def gear_delete(request, pk):
     return render(request, 'confirm_delete.html', {'gear_item': gear_item})
 
 def gear_refresh(request):
-    # TODO: Add your server-side actions here (e.g., recalculate stats)
-    # For now, just a placeholder
-
+    GearCalculated.recalculate_all_gear()
     # After action, redirect back to gear list
     return redirect('gear_list')
