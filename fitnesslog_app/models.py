@@ -102,8 +102,8 @@ class ActivityCalculated(models.Model):
     last_calculated = models.DateTimeField(auto_now=True)
 
     load = models.FloatField()
-    pace_avg = models.FloatField(blank=True, null=True)  # min/km
-    moving_pace_avg = models.FloatField(blank=True, null=True)  # min/km
+    #pace_avg = models.FloatField(blank=True, null=True)  # min/km
+    #moving_pace_avg = models.FloatField(blank=True, null=True)  # min/km
     time_in_HR_detailed = models.TextField(blank=True)  # JSON string of time in HR zones
     time_in_HR_zones = models.TextField(blank=True)  # JSON string of time in HR zones
     time_at_pace = models.TextField(blank=True)  # JSON string of time at HR/pace zones
@@ -116,3 +116,7 @@ class ActivityDayCalculated(models.Model):
     time_in_HR_detailed = models.TextField(blank=True)  # JSON string of time in HR zones
     time_in_HR_zones = models.TextField(blank=True)  # JSON string of time in HR zones
     time_at_pace = models.TextField(blank=True)  # JSON string of time at HR/pace zones
+
+    total_distance = models.FloatField(default=0.0)  # km
+    total_climb = models.FloatField(default=0.0)     # m
+    total_session_count = models.IntegerField(default=0)
