@@ -93,9 +93,9 @@ class Activity(models.Model):
     id = models.AutoField(primary_key=True)
     datetime_added = models.DateTimeField(auto_now_add=True)
 
-    sport = models.ForeignKey(Sport, on_delete=models.CASCADE, related_name='activities')
-    activity_type = models.CharField(max_length=100)
-    location = models.TextField(blank=True)
+    sport = models.ForeignKey(Sport, on_delete=models.CASCADE, related_name='activities', blank=True, null=True)
+    activity_type = models.CharField(max_length=100, blank=True, null=True)
+    location = models.TextField(blank=True, null=True)
     intensity = models.PositiveSmallIntegerField(choices=[
         (1, 'Leisure'),
         (2, 'Very easy'),
@@ -107,37 +107,37 @@ class Activity(models.Model):
         (8, 'Hard'),
         (9, 'Very hard'),
         (10, 'Max'),
-    ])
+    ], blank=True, null=True)
     feeling = models.PositiveSmallIntegerField(choices=[
-        (1, 'Awful (really should not have done this)'),
-        (2, 'Bad'),
-        (3, 'Grim (having 2nd thoughts)'),
+        (1, 'Terrible'),
+        (2, 'Awful'),
+        (3, 'Very bad'),
         (4, 'Not great'),
-        (5, 'A little hard'),
-        (6, 'Neutral'),
-        (7, 'Reasonable'),
-        (8, 'Great'),
-        (9, 'Energised'),
-        (10, 'Incredible'),
-    ])
-    terrain = models.CharField(max_length=100, blank=True)
+        (5, 'Meh'),
+        (6, 'Okay'),
+        (7, 'Good'),
+        (8, 'Very good'),
+        (9, 'Excellent'),
+        (10, 'Euphoric'),
+    ], blank=True, null=True)
+    terrain = models.CharField(max_length=100, blank=True, null=True)
     gear = models.ManyToManyField(Gear, blank=True, related_name='activities')
-    note = models.TextField(blank=True)
+    note = models.TextField(blank=True, null=True)
 
-    start_datetime = models.DateTimeField(blank=True, null=True) # UTC
-    start_timezone = models.CharField(max_length=100, default='UTC')
+    start_datetime = models.DateTimeField(blank=True, null=True)  # UTC
+    start_timezone = models.CharField(max_length=100, blank=True, null=True, default='UTC')
     elapsed_time = models.DurationField(blank=True, null=True)  # Total time spent
     tracked_time = models.DurationField(blank=True, null=True)  # Time actively tracked
     moving_time = models.DurationField(blank=True, null=True)  # Time spent moving
 
     distance = models.FloatField(blank=True, null=True)  # km
-    elevation_gain = models.FloatField(blank=True, null=True)     # m
-    elevation_loss = models.FloatField(blank=True, null=True)     # m
-    elevation_max = models.FloatField(blank=True, null=True)     # m
-    elevation_min = models.FloatField(blank=True, null=True)     # m
+    elevation_gain = models.FloatField(blank=True, null=True)  # m
+    elevation_loss = models.FloatField(blank=True, null=True)  # m
+    elevation_max = models.FloatField(blank=True, null=True)  # m
+    elevation_min = models.FloatField(blank=True, null=True)  # m
 
-    time_at_HR = models.TextField(blank=True)  # JSON string of time at HR zones
-    time_at_pace = models.TextField(blank=True)  # JSON string of time at HR/pace zones
+    time_at_HR = models.TextField(blank=True, null=True)  # JSON string of time at HR zones
+    time_at_pace = models.TextField(blank=True, null=True)  # JSON string of time at HR/pace zones
 
     calories = models.IntegerField(blank=True, null=True)  # Estimated calories burned
 
