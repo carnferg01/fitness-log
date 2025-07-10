@@ -7,7 +7,7 @@ def home(request):
     return render(request, 'home.html')
 
 def gear_list(request):
-    gear = Gear.objects.all()
+    gear = Gear.objects.all().select_related('calculated')
     return render(request, 'gear_list.html', {'gear': gear})
 
 def gear_add(request):
@@ -37,3 +37,10 @@ def gear_delete(request, pk):
         gear_item.delete()
         return redirect('gear_list')  # change as needed
     return render(request, 'confirm_delete.html', {'gear_item': gear_item})
+
+def gear_refresh(request):
+    # TODO: Add your server-side actions here (e.g., recalculate stats)
+    # For now, just a placeholder
+
+    # After action, redirect back to gear list
+    return redirect('gear_list')

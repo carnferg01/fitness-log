@@ -14,7 +14,7 @@ class Gear(models.Model):
     
 class GearCalculated(models.Model):
     id = models.AutoField(primary_key=True)
-    gear = models.ForeignKey(Gear, on_delete=models.CASCADE)
+    gear = models.OneToOneField(Gear, on_delete=models.CASCADE, related_name='calculated')
     first_used = models.DateTimeField(null=True, blank=True)
     last_used = models.DateTimeField(null=True, blank=True)
     distance = models.FloatField(default=0.0)  # km
