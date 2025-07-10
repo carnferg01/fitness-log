@@ -151,3 +151,25 @@ class ActivityDayCalculated(models.Model):
     total_distance = models.FloatField(default=0.0)  # km
     total_climb = models.FloatField(default=0.0)     # m
     total_session_count = models.IntegerField(default=0)
+
+
+class OrienteeringProfile(models.Model):
+    activity = models.OneToOneField(Activity, on_delete=models.CASCADE, related_name='orienteering_profile')
+
+    controls_found = models.IntegerField(default=0)
+
+class SimplifiedTraceCoordinates(models.Model):
+    activity = models.OneToOneField(Activity, on_delete=models.CASCADE, related_name='simplified_trace')
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    timestamp = models.DateTimeField()
+
+class HRzones(models.Model):
+    id = models.AutoField(primary_key=True)
+    timestamp = models.DateTimeField()
+    #sports = 
+    notes = models.TextField(blank=True)
+
+    zones = models.JSONField(default=dict)  # JSON object with zone definitions
+    zone_multipliers = models.JSONField(default=dict)  # JSON object with zone multipliers 
+    # need a function to convert a formula to multipliers
