@@ -141,6 +141,16 @@ class Activity(models.Model):
 
     calories = models.IntegerField(blank=True, null=True)  # Estimated calories burned
 
+    def get_value(activity, field_name, default):
+        value = getattr(activity, field_name, None)
+        if value is not None:
+            return value
+        if hasattr(activity, 'auto'):
+            auto_value = getattr(activity.auto, field_name, None)
+            if auto_value is not None:
+                return auto_value
+        return default
+
 
 class ActivityAuto(models.Model):
     id = models.AutoField(primary_key=True)
@@ -204,6 +214,56 @@ class ActivityDayCalculated(models.Model):
     total_climb = models.FloatField(default=0.0)     # m
     total_session_count = models.IntegerField(default=0)
 
+    def update_activity_day_calculated():
+        from collections import defaultdict
+        from datetime import timedelta
+
+        data = defaultdict(lambda: {
+            'distance': 0.0,
+            'climb': 0.0,
+            'sessions': 0,
+            'elapsed_time': timedelta(0),
+            'tracked_time': timedelta(0),
+            'moving_time': timedelta(0),
+            'load': 0.0,
+        })
+
+        activities = Activity.objects.select_related('auto').all()
+
+        for activity in activities:
+            day = activity.start_datetime.date() if activity.start_datetime else None
+            if not day:
+                continue  # skip if no start date
+
+            dist = activity.get_value('distance', 0.0)
+            climb = activity.get_value('elevation_gain', 0.0)
+            elapsed = activity.get_value('elapsed_time', timedelta(0))
+            tracked = activity.get_value('tracked_time', timedelta(0))
+            moving = activity.get_value('moving_time', timedelta(0))
+
+            load = getattr(activity.calculated, 'load', 0)
+
+            data[day]['distance'] += dist
+            data[day]['climb'] += climb
+            data[day]['sessions'] += 1
+            data[day]['elapsed_time'] += elapsed
+            data[day]['tracked_time'] += tracked
+            data[day]['moving_time'] += moving
+            data[day]['load'] += load
+
+        for day, values in data.items():
+            obj, created = ActivityDayCalculated.objects.update_or_create(
+                date=day,
+                defaults={
+                    'distance': values['distance'],
+                    'climb': values['climb'],
+                    'session_count': values['sessions'],
+                    'elapsed_time': values['elapsed_time'],
+                    'tracked_time': values['tracked_time'],
+                    'moving_time': values['moving_time'],
+                    'load': values['load'],
+                }
+            )
 
 class OrienteeringProfile(models.Model):
     activity = models.OneToOneField(Activity, on_delete=models.CASCADE, related_name='orienteering_profile')
