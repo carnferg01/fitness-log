@@ -1,15 +1,17 @@
-<!-- templates/add_gear.html -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Add Gear</title>
-</head>
-<body>
-    <h1>Add a New Gear item</h1>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Add Gear</button>
-    </form>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Add Gear{% endblock %}
+
+
+{% block content %}
+<h2 class="mb-4">Add New Gear</h2>
+
+<form method="post" class="card p-4 shadow-sm">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="d-flex justify-content-between mt-3">
+        <button type="submit" class="btn btn-success">Add Gear</button>
+        <a href="{% url 'gear_list' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+{% endblock %}
