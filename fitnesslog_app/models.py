@@ -56,6 +56,18 @@ class Activity(models.Model):
         (9, 'Very hard'),
         (10, 'Max'),
     ])
+    feeling = models.PositiveSmallIntegerField(choices=[
+        (1, 'Awful (really should not have done this)'),
+        (2, 'Bad'),
+        (3, 'Grim (having 2nd thoughts)'),
+        (4, 'Not great'),
+        (5, 'A little hard'),
+        (6, 'Neutral'),
+        (7, 'Reasonable'),
+        (8, 'Great'),
+        (9, 'Energised'),
+        (10, 'Incredible'),
+    ])
     terrain = models.CharField(max_length=100, blank=True)
     gear = models.ManyToManyField(Gear, blank=True, related_name='activities')
     note = models.TextField(blank=True)
@@ -74,6 +86,8 @@ class Activity(models.Model):
 
     time_at_HR = models.TextField(blank=True)  # JSON string of time at HR zones
     time_at_pace = models.TextField(blank=True)  # JSON string of time at HR/pace zones
+
+    calories = models.IntegerField(blank=True, null=True)  # Estimated calories burned
 
 
 class ActivityAuto(models.Model):
@@ -96,6 +110,23 @@ class ActivityAuto(models.Model):
 
     time_at_HR = models.TextField(blank=True)  # JSON string of time at HR zones
     time_at_pace = models.TextField(blank=True)  # JSON string of time at HR/pace zones
+
+    best_sustained_pace = models.FloatField(blank=True, null=True)  # min/km (for >=5 seconds)
+    device = models.CharField(max_length=100, blank=True)  # Device used for tracking
+    weather = models.CharField(max_length=100, blank=True)  # Weather conditions
+    calories = models.IntegerField(blank=True, null=True)  # Estimated calories burned
+
+    # ground_contact_time_avg
+    # GC_time_balance_avg
+    # vertical_oscillation_avg
+    # vertical_ratio_avg
+    # stride_length_avg
+    # cadence_avg
+    # cadence_max
+    # HR_max
+    # HR_avg
+
+
 
 class ActivityCalculated(models.Model):
     activity = models.OneToOneField(Activity, on_delete=models.CASCADE, related_name='calculated', primary_key=True)
