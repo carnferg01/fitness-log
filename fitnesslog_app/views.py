@@ -138,7 +138,7 @@ def activity_list(request):
         activity.calories = activity.get_value('calories', 0)
     return render(request, 'activity_list.html', {'activity_list': activity_list})
 
-def activity_add(request, auto_id=None):
+def activity_add(request):
     placeholder_data = request.session.get('extracted_activity_data', None)
 
     if request.method == 'POST':
@@ -192,12 +192,7 @@ def parse_file(file):
 
     return {
         'sport': sport.id,  # Set this to an actual Activity instance before saving
-        'activity_type': 'endurance',  # This should be a valid choice from the ActivityTypeChoices
         'file': None,  # FileField expects a file object or file path when saving
-        'location': 'London UK',
-        'intensity': 4,
-        'feeling': 8,
-        'terrain': 'Rubber',
         'start_latitude': 51.5074,
         'start_longitude': -0.1278,
         'start_datetime': '2025-07-10T07:30:00',  # ISO 8601 string or a datetime object
