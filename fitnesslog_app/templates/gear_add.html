@@ -1,0 +1,15 @@
+<!-- templates/add_gear.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Gear</title>
+</head>
+<body>
+    <h1>Add a New Gear item</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Add Gear</button>
+    </form>
+</body>
+</html>

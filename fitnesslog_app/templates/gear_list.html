@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gear list</title>
+</head>
+<body>
+    <h1>Gear</h1>
+    <ul>
+        {% for gear_item in gear %}
+        <li>{{ gear_item.nickname }} - {{ gear_item.type }}</li>
+        {% empty %}
+        <li>No gear yet.</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
