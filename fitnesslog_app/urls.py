@@ -12,14 +12,20 @@ urlpatterns = [
     path('gear/refresh/', views.gear_refresh, name='gear_refresh'),
 
     # Sport
-    path('sport/', views.sport_list, name='sport_list'),
+    path('sports/', views.sport_list, name='sport_list'),
     path('sport/add/', views.sport_add, name='sport_add'),
     path('sport/<int:pk>/edit/', views.sport_edit, name='sport_edit'),
-    path('sport/<int:pk>/delete/', views.sport_delete, name='hrzones_delete'),
+    path('sport/<int:pk>/delete/', views.sport_delete, name='sport_delete'),
 
     # HRzones
-    path('hzones/', views.hrzones_list, name='hrzones_list'),
+    path('hrzones/', views.hrzones_list, name='hrzones_list'),
     path('hrzones/add/', views.hrzones_add, name='hrzones_add'),
     path('hrzones/<int:pk>/edit/', views.hrzones_edit, name='hrzones_edit'),
     path('hrzones/<int:pk>/delete/', views.hrzones_delete, name='hrzones_delete'),
+
+    # Activity
+    path('activities/', views.activity_list, name='activity_list'),
+    path('activity/add/', views.activity_add, name='activity_add'),
+    path('activity/<int:pk>/edit/', views.activity_edit, name='activity_edit'),
+    path('activity/<int:pk>/delete/', views.activity_delete, name='activity_delete'),
 ]

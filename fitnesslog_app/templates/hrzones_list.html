@@ -18,11 +18,11 @@
             </tr>
         </thead>
         <tbody>
-        {% for _hrzones in hrzones %}
+        {% for hrzones in hrzones_list %}
             <tr>
-                <td>{{ _hrzones.timestamp }}</td>
+                <td>{{ hrzones.timestamp }}</td>
                 <td>
-                    <a href="{% url 'hrzones_edit' _hrzones.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    <a href="{% url 'hrzones_edit' hrzones.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
                 </td>
             </tr>
         {% empty %}

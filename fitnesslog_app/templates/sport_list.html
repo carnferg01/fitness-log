@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load custom_filters %}
+
 {% block title %}Sport List{% endblock %}
 
 {% block content %}
@@ -15,22 +17,14 @@
         <thead class="table-light">
             <tr>
                 <th>Name</th>
-                <th>Colour</th>
                 <th>Impact</th>
             </tr>
         </thead>
         <tbody>
-        {% for sport_item in sport %}
+        {% for sport in sports %}
             <tr>
-                <td>{{ sport.name }}</td>
-                <td>{{ sport.colour }}</td>
-                <td>
-                    {% if sport_item.impact %}
-                        <span class="badge bg-success">Yes</span>
-                    {% else %}
-                        <span class="badge bg-warning">No</span>
-                    {% endif %}
-                </td>
+                <td style="background-color: {{ sport.colour }}; color: {{ sport.colour|contrast_text }};">{{ sport.name }}</td>
+                <td>{{ sport.impact }}</td>
                 <td>
                     <a href="{% url 'sport_edit' sport.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
                 </td>

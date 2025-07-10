@@ -283,5 +283,5 @@ class HRzones(models.Model):
     notes = models.TextField(blank=True)
 
     zones = models.JSONField(default=dict)  # JSON object with zone definitions
-    zone_multipliers = models.JSONField(default=dict)  # JSON object with zone multipliers 
+    zone_multipliers = models.JSONField(default=list)  # JSON object with zone multipliers 
     # need a function to convert a formula to multipliers

@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 
-from .models import Gear, GearCalculated, Sport, HRzones
-from .forms import GearForm, SportForm, HRzonesForm
+from .models import Gear, GearCalculated, Sport, HRzones, Activity
+from .forms import GearForm, SportForm, HRzonesForm, ActivityForm
 
 def home(request):
     return render(request, 'home.html')
@@ -52,8 +52,8 @@ def gear_refresh(request):
 
 
 def sport_list(request):
-    sport = Sport.objects.all()
-    return render(request, 'sport_list.html', {'sport': sport})
+    sports = Sport.objects.all()
+    return render(request, 'sport_list.html', {'sports': sports})
 
 def sport_add(request):
     if request.method == 'POST':
@@ -90,7 +90,7 @@ def sport_delete(request, pk):
 
 def hrzones_list(request):
     hrzones = HRzones.objects.all()
-    return render(request, 'hrzones_list.html', {'hrzones': hrzones})
+    return render(request, 'hrzones_list.html', {'hrzones_list': hrzones})
 
 def hrzones_add(request):
     if request.method == 'POST':
@@ -119,5 +119,42 @@ def hrzones_delete(request, pk):
         hrzones.delete()
         return redirect('hrzones_list')  # change as needed
     return render(request, 'confirm_delete.html', {'hrzones': hrzones})
+
+
+########################################################################
+### activity
+
+
+def activity_list(request):
+    activity_list = Activity.objects.all()
+    return render(request, 'activity_list.html', {'activity_list': activity_list})
+
+def activity_add(request):
+    if request.method == 'POST':
+        form = ActivityForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('activity_list')
+    else:
+        form = ActivityForm()
+    return render(request, 'activity_add.html', {'form': form})
+
+def activity_edit(request, pk):
+    activity = get_object_or_404(Activity, pk=pk)
+    if request.method == 'POST':
+        form = ActivityForm(request.POST, instance=activity)
+        if form.is_valid():
+            form.save()
+            return redirect('activity_list')  # change as needed
+    else:
+        form = ActivityForm(instance=activity)
+    return render(request, 'activity_edit.html', {'form': form, 'activity': activity})
+
+def activity_delete(request, pk):
+    activity = get_object_or_404(Activity, pk=pk)
+    if request.method == 'POST':
+        activity.delete()
+        return redirect('activity_list')  # change as needed
+    return render(request, 'confirm_delete.html', {'activity': activity})
 
 
