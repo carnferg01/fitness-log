@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-
+from datetime import timedelta, datetime, timezone
 from .models import Gear, GearCalculated, Sport, HRzones, Activity, Injury, Illness, ActivityAuto
 from .forms import GearForm, SportForm, HRzonesForm, ActivityForm, InjuryForm, IllnessForm
 
@@ -129,10 +129,10 @@ def activity_list(request):
     activity_list = Activity.objects.select_related('sport', 'auto')
     for activity in activity_list:
         activity.sport = activity.get_value('sport', '')
-        activity.activity_type = activity.get_value('activity_type', '00:00:00')
+        activity.activity_type = activity.get_value('activity_type', timedelta(0))
         activity.start_datetime = activity.get_value('start_datetime', '0001-01-01T00:00')
         activity.start_timezone = activity.get_value('start_timezone', 'UTC')
-        activity.moving_time = activity.get_value('moving_time', '00:00:00')
+        activity.moving_time = activity.get_value('moving_time', timedelta(0))
         activity.distance = activity.get_value('distance', 0)
         activity.elevation_gain = activity.get_value('elevation_gain', 0)
         activity.calories = activity.get_value('calories', 0)
@@ -147,11 +147,7 @@ def activity_add(request, auto_id=None):
         if auto:
             # Pre-fill from extracted_data if form not submitted
             placeholder_data  = {field.name: getattr(auto, field.name) for field in auto._meta.fields}
-            # {
-            #     'elapsed_time': auto.elapsed_time,
-            #     'distance': auto.distance,
-            #     # ... other fields
-            # }
+            
     form = ActivityForm()
     return render(request, 'activity_add.html', {'form': form, 'placeholders': placeholder_data})
 
@@ -177,9 +173,26 @@ def parse_file(file):
     # Placeholder for actual file analysis logic
     # Return a dictionary of extracted values
     return {
-        #'elapsed_time': datetime.timedelta(minutes=45),
-        'distance': 10.2,
-        'calories': 560,
+        'activity': None,  # Set this to an actual Activity instance before saving
+        'file': None,  # FileField expects a file object or file path when saving
+        'start_latitude': 51.5074,
+        'start_longitude': -0.1278,
+        'start_datetime': datetime(year=2025, month=7, day=10, hour=7, minute=30, second=0, tzinfo=timezone.utc),  # ISO 8601 string or a datetime object
+        'start_timezone': 'UTC',
+        'elapsed_time': timedelta(hours=1,minutes=30),  # timedelta or string 'HH:MM:SS'
+        'tracked_time': timedelta(hours=1,minutes=20),
+        'moving_time': timedelta(hours=1,minutes=15),
+        'distance': 15.2,
+        'elevation_gain': 250.5,
+        'elevation_loss': 240.3,
+        'elevation_max': 180.0,
+        'elevation_min': 50.0,
+        'time_at_HR': '{"zone1": "00:10:00", "zone2": "00:30:00"}',  # JSON string
+        'time_at_pace': '{"pace1": "00:15:00", "pace2": "01:15:00"}',
+        'best_sustained_pace': 4.35,
+        'device': 'Garmin Forerunner 945',
+        'weather': 'Sunny, 20°C',
+        'calories': 1200,
     }
 
 def activity_add_from_file(request):
