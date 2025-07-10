@@ -285,3 +285,33 @@ class HRzones(models.Model):
     zones = models.JSONField(default=dict)  # JSON object with zone definitions
     zone_multipliers = models.JSONField(default=list)  # JSON object with zone multipliers 
     # need a function to convert a formula to multipliers
+
+class Injury(models.Model):
+    id = models.AutoField(primary_key=True)
+    datetime_added = models.DateTimeField(auto_now_add=True)
+    title = models.CharField(max_length=100)
+    start_datetime = models.DateTimeField()
+    location = models.CharField(max_length=100, blank=True)
+    side = models.CharField(max_length=5, choices=[
+        ('left', 'Left'),
+        ('right', 'Right'),
+        ('both', 'Both'),
+        ('', ''),
+    ], default='')
+    notes = models.TextField(blank=True)
+    severity = models.TextField()  # e.g. 1222233253300003
+
+    def __str__(self):
+        return f"{self.title} starting on {self.start_datetime}"
+    
+class Illness(models.Model):
+    id = models.AutoField(primary_key=True)
+    datetime_added = models.DateTimeField(auto_now_add=True)
+    title = models.CharField(max_length=100)
+    start_datetime = models.DateTimeField()
+    location = models.CharField(max_length=100, blank=True)
+    notes = models.TextField(blank=True)
+    severity = models.TextField()  # e.g. 1222233253300003
+
+    def __str__(self):
+        return f"{self.title} starting on {self.start_datetime}"
