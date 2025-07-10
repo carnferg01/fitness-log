@@ -95,7 +95,7 @@ class Activity(models.Model):
 
     sport = models.ForeignKey(Sport, on_delete=models.CASCADE, related_name='activities')
     activity_type = models.CharField(max_length=100)
-    locations = models.TextField(blank=True)  # JSON string of locations
+    location = models.TextField(blank=True)
     intensity = models.PositiveSmallIntegerField(choices=[
         (1, 'Leisure'),
         (2, 'Very easy'),
@@ -154,7 +154,7 @@ class Activity(models.Model):
 
 class ActivityAuto(models.Model):
     id = models.AutoField(primary_key=True)
-    activity = models.OneToOneField(Activity, on_delete=models.CASCADE, null=True, related_name='auto')
+    activity = models.OneToOneField(Activity, on_delete=models.CASCADE, related_name='auto')
     file = models.FileField(upload_to="activity_files_uploads/")
     start_latitude = models.FloatField(blank=True, null=True)
     start_longitude = models.FloatField(blank=True, null=True)

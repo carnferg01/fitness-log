@@ -139,17 +139,26 @@ def activity_list(request):
     return render(request, 'activity_list.html', {'activity_list': activity_list})
 
 def activity_add(request, auto_id=None):
-    auto = None
-    placeholder_data  = {}
+    placeholder_data = request.session.get('extracted_activity_data', None)
 
-    if auto_id:
-        auto = ActivityAuto.objects.filter(id=auto_id).first()
-        if auto:
-            # Pre-fill from extracted_data if form not submitted
-            placeholder_data  = {field.name: getattr(auto, field.name) for field in auto._meta.fields}
-            
-    form = ActivityForm()
-    return render(request, 'activity_add.html', {'form': form, 'placeholders': placeholder_data})
+    if request.method == 'POST':
+        form = ActivityForm(request.POST)
+        if form.is_valid():
+            activity = form.save()
+
+            # Create ActivityAuto using the extracted data from session (if available)
+            if placeholder_data:
+                ActivityAuto.objects.create(**placeholder_data, activity=activity)
+                request.session.pop('extracted_activity_data', None)
+            return redirect('activity_list')
+    else:
+        form = ActivityForm()
+
+    return render(request, 'activity_add.html', {
+        'form': form,
+        'placeholders': placeholder_data or {},
+    })
+
 
 def activity_edit(request, pk):
     activity = get_object_or_404(Activity, pk=pk)
@@ -172,16 +181,30 @@ def activity_delete(request, pk):
 def parse_file(file):
     # Placeholder for actual file analysis logic
     # Return a dictionary of extracted values
+
+    sport, sport_created_bool = Sport.objects.get_or_create(
+        name='boxing',
+        defaults={
+            'colour': '#000000',  # default grey
+            'impact': True,
+        }
+    )
+
     return {
-        'activity': None,  # Set this to an actual Activity instance before saving
+        'sport': sport.id,  # Set this to an actual Activity instance before saving
+        'activity_type': 'endurance',  # This should be a valid choice from the ActivityTypeChoices
         'file': None,  # FileField expects a file object or file path when saving
+        'location': 'London UK',
+        'intensity': 4,
+        'feeling': 8,
+        'terrain': 'Rubber',
         'start_latitude': 51.5074,
         'start_longitude': -0.1278,
-        'start_datetime': datetime(year=2025, month=7, day=10, hour=7, minute=30, second=0, tzinfo=timezone.utc),  # ISO 8601 string or a datetime object
+        'start_datetime': '2025-07-10T07:30:00',  # ISO 8601 string or a datetime object
         'start_timezone': 'UTC',
-        'elapsed_time': timedelta(hours=1,minutes=30),  # timedelta or string 'HH:MM:SS'
-        'tracked_time': timedelta(hours=1,minutes=20),
-        'moving_time': timedelta(hours=1,minutes=15),
+        'elapsed_time': '01:30:00',  # timedelta or string 'HH:MM:SS'
+        'tracked_time': '01:20:00',
+        'moving_time': '01:15:00',
         'distance': 15.2,
         'elevation_gain': 250.5,
         'elevation_loss': 240.3,
@@ -193,16 +216,37 @@ def parse_file(file):
         'device': 'Garmin Forerunner 945',
         'weather': 'Sunny, 20°C',
         'calories': 1200,
-    }
+    } 
+
+    # {
+    #     'activity': None,  # Set this to an actual Activity instance before saving
+    #     'file': None,  # FileField expects a file object or file path when saving
+    #     'start_latitude': 51.5074,
+    #     'start_longitude': -0.1278,
+    #     'start_datetime': datetime(year=2025, month=7, day=10, hour=7, minute=30, second=0, tzinfo=timezone.utc),  # ISO 8601 string or a datetime object
+    #     'start_timezone': 'UTC',
+    #     'elapsed_time': timedelta(hours=1,minutes=30),  # timedelta or string 'HH:MM:SS'
+    #     'tracked_time': timedelta(hours=1,minutes=20),
+    #     'moving_time': timedelta(hours=1,minutes=15),
+    #     'distance': 15.2,
+    #     'elevation_gain': 250.5,
+    #     'elevation_loss': 240.3,
+    #     'elevation_max': 180.0,
+    #     'elevation_min': 50.0,
+    #     'time_at_HR': '{"zone1": "00:10:00", "zone2": "00:30:00"}',  # JSON string
+    #     'time_at_pace': '{"pace1": "00:15:00", "pace2": "01:15:00"}',
+    #     'best_sustained_pace': 4.35,
+    #     'device': 'Garmin Forerunner 945',
+    #     'weather': 'Sunny, 20°C',
+    #     'calories': 1200,
+    # }
 
 def activity_add_from_file(request):
     if request.method == 'POST' and 'activity_file' in request.FILES:
         file = request.FILES['activity_file']
         extracted = parse_file(file)
-
-        auto = ActivityAuto.objects.create(**extracted)
-
-        return redirect('activity_add', auto_id=auto.id)
+        request.session['extracted_activity_data'] = extracted
+        #auto = ActivityAuto.objects.create(**extracted)
     return redirect('activity_add')
 
 

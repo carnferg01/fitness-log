@@ -40,7 +40,7 @@ class ActivityForm(forms.ModelForm):
         fields = [
             'sport',
             'activity_type',
-            'locations',
+            'location',
             'intensity',
             'feeling',
             'terrain',
