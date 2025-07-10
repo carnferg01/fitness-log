@@ -1,6 +1,6 @@
 # forms.py
 from django import forms
-from .models import Gear, Sport, HRzones, Activity
+from .models import Gear, Sport, HRzones, Activity, Injury
 
 class GearForm(forms.ModelForm):
     class Meta:
@@ -58,3 +58,8 @@ class ActivityForm(forms.ModelForm):
             'time_at_pace',
             'calories'
         ]
+
+class InjuryForm(forms.ModelForm):
+    class Meta:
+        model = Injury
+        fields = ['title', 'start_datetime', 'location', 'side']

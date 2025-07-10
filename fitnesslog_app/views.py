@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 
-from .models import Gear, GearCalculated, Sport, HRzones, Activity
-from .forms import GearForm, SportForm, HRzonesForm, ActivityForm
+from .models import Gear, GearCalculated, Sport, HRzones, Activity, Injury
+from .forms import GearForm, SportForm, HRzonesForm, ActivityForm, InjuryForm
 
 def home(request):
     return render(request, 'home.html')
@@ -158,3 +158,38 @@ def activity_delete(request, pk):
     return render(request, 'confirm_delete.html', {'activity': activity})
 
 
+########################################################################
+### Injury
+
+
+def injury_list(request):
+    injurys = Injury.objects.all()
+    return render(request, 'injury_list.html', {'injurys': injurys})
+
+def injury_add(request):
+    if request.method == 'POST':
+        form = InjuryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('injury_list')
+    else:
+        form = InjuryForm()
+    return render(request, 'injury_add.html', {'form': form})
+
+def injury_edit(request, pk):
+    injury = get_object_or_404(Injury, pk=pk)
+    if request.method == 'POST':
+        form = InjuryForm(request.POST, instance=injury)
+        if form.is_valid():
+            form.save()
+            return redirect('injury_list')  # change as needed
+    else:
+        form = InjuryForm(instance=injury)
+    return render(request, 'injury_edit.html', {'form': form, 'injury': injury})
+
+def injury_delete(request, pk):
+    injury = get_object_or_404(Injury, pk=pk)
+    if request.method == 'POST':
+        injury.delete()
+        return redirect('injury_list')  # change as needed
+    return render(request, 'confirm_delete.html', {'injury': injury})

@@ -28,4 +28,10 @@ urlpatterns = [
     path('activity/add/', views.activity_add, name='activity_add'),
     path('activity/<int:pk>/edit/', views.activity_edit, name='activity_edit'),
     path('activity/<int:pk>/delete/', views.activity_delete, name='activity_delete'),
+
+    # Injury
+    path('injuries/', views.injury_list, name='injury_list'),
+    path('injury/add/', views.injury_add, name='injury_add'),
+    path('injury/<int:pk>/edit/', views.injury_edit, name='injury_edit'),
+    path('injury/<int:pk>/delete/', views.injury_delete, name='injury_delete'),
 ]
