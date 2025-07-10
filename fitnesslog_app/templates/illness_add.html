@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Add Illness{% endblock %}
+
+
+{% block content %}
+<h2 class="mb-4">Add New Illness</h2>
+
+<form method="post" class="card p-4 shadow-sm">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="d-flex justify-content-between mt-3">
+        <button type="submit" class="btn btn-success">Save</button>
+        <a href="{% url 'illness_list' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+{% endblock %}

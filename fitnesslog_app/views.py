@@ -1,10 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
 
-from .models import Gear, GearCalculated, Sport, HRzones, Activity, Injury
-from .forms import GearForm, SportForm, HRzonesForm, ActivityForm, InjuryForm
+from .models import Gear, GearCalculated, Sport, HRzones, Activity, Injury, Illness
+from .forms import GearForm, SportForm, HRzonesForm, ActivityForm, InjuryForm, IllnessForm
 
-def home(request):
-    return render(request, 'home.html')
+def summary(request):
+    return render(request, 'summary.html')
 
 
 #######################################################################
@@ -126,7 +126,16 @@ def hrzones_delete(request, pk):
 
 
 def activity_list(request):
-    activity_list = Activity.objects.all()
+    activity_list = Activity.objects.select_related('sport', 'auto')
+    for activity in activity_list:
+        activity.sport = activity.get_value('sport', '')
+        activity.activity_type = activity.get_value('activity_type', '00:00:00')
+        activity.start_datetime = activity.get_value('start_datetime', '0001-01-01T00:00')
+        activity.start_timezone = activity.get_value('start_timezone', 'UTC')
+        activity.moving_time = activity.get_value('moving_time', '00:00:00')
+        activity.distance = activity.get_value('distance', 0)
+        activity.elevation_gain = activity.get_value('elevation_gain', 0)
+        activity.calories = activity.get_value('calories', 0)
     return render(request, 'activity_list.html', {'activity_list': activity_list})
 
 def activity_add(request):
@@ -193,3 +202,40 @@ def injury_delete(request, pk):
         injury.delete()
         return redirect('injury_list')  # change as needed
     return render(request, 'confirm_delete.html', {'injury': injury})
+
+
+########################################################################
+### Illness
+
+
+def illness_list(request):
+    illnesss = Illness.objects.all()
+    return render(request, 'illness_list.html', {'illnesss': illnesss})
+
+def illness_add(request):
+    if request.method == 'POST':
+        form = IllnessForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('illness_list')
+    else:
+        form = IllnessForm()
+    return render(request, 'illness_add.html', {'form': form})
+
+def illness_edit(request, pk):
+    illness = get_object_or_404(Illness, pk=pk)
+    if request.method == 'POST':
+        form = IllnessForm(request.POST, instance=illness)
+        if form.is_valid():
+            form.save()
+            return redirect('illness_list')  # change as needed
+    else:
+        form = IllnessForm(instance=illness)
+    return render(request, 'illness_edit.html', {'form': form, 'illness': illness})
+
+def illness_delete(request, pk):
+    illness = get_object_or_404(Illness, pk=pk)
+    if request.method == 'POST':
+        illness.delete()
+        return redirect('illness_list')  # change as needed
+    return render(request, 'confirm_delete.html', {'illness': illness})

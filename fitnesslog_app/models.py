@@ -141,12 +141,12 @@ class Activity(models.Model):
 
     calories = models.IntegerField(blank=True, null=True)  # Estimated calories burned
 
-    def get_value(activity, field_name, default):
-        value = getattr(activity, field_name, None)
+    def get_value(self, field_name, default):
+        value = getattr(self, field_name, None)
         if value is not None:
             return value
-        if hasattr(activity, 'auto'):
-            auto_value = getattr(activity.auto, field_name, None)
+        if hasattr(self, 'auto'):
+            auto_value = getattr(self.auto, field_name, None)
             if auto_value is not None:
                 return auto_value
         return default

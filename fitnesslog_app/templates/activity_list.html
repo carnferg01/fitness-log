@@ -18,22 +18,11 @@
             <tr>
                 <th>sport</th>
                 <th>activity_type</th>
-                <th>locations</th>
-                <th>intensity</th>
-                <th>feeling</th>
-                <th>terrain</th>
                 <th>start_datetime</th>
                 <th>start_timezone</th>
-                <th>elapsed_time</th>
-                <th>tracked_time</th>
                 <th>moving_time</th>
                 <th>distance</th>
                 <th>elevation_gain</th>
-                <th>elevation_loss</th>
-                <th>elevation_max</th>
-                <th>elevation_min</th>
-                <th>time_at_HR</th>
-                <th>time_at_pace</th>
                 <th>calories</th>
             </tr>
         </thead>
@@ -42,22 +31,11 @@
             <tr>
                 <td style="background-color: {{ activity.sport.colour }}; color: {{ activity.sport.colour|contrast_text }};">{{ activity.sport.name }}</td>
                 <td>{{ activity.activity_type }}</td>
-                <td>{{ activity.locations }}</td>
-                <td>{{ activity.intensity }}</td>
-                <td>{{ activity.feeling }}</td>
-                <td>{{ activity.terrain }}</td>
                 <td>{{ activity.start_datetime }}</td>
                 <td>{{ activity.start_timezone }}</td>
-                <td>{{ activity.elapsed_time }}</td>
-                <td>{{ activity.tracked_time }}</td>
                 <td>{{ activity.moving_time }}</td>
                 <td>{{ activity.distance }}</td>
                 <td>{{ activity.elevation_gain }}</td>
-                <td>{{ activity.elevation_loss }}</td>
-                <td>{{ activity.elevation_max }}</td>
-                <td>{{ activity.elevation_min }}</td>
-                <td>{{ activity.time_at_HR }}</td>
-                <td>{{ activity.time_at_pace }}</td>
                 <td>{{ activity.calories }}</td>
                 <td>
                     <a href="{% url 'activity_edit' activity.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
