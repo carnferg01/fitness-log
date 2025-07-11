@@ -125,7 +125,7 @@ class Activity(models.Model):
     note = models.TextField(blank=True, null=True)
 
     start_datetime = models.DateTimeField(blank=True, null=True)  # UTC
-    start_timezone = models.CharField(max_length=100, blank=True, null=True, default='UTC')
+    start_timezone = models.CharField(max_length=100, blank=True, null=True)
     elapsed_time = models.DurationField(blank=True, null=True)  # Total time spent
     tracked_time = models.DurationField(blank=True, null=True)  # Time actively tracked
     moving_time = models.DurationField(blank=True, null=True)  # Time spent moving

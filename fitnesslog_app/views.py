@@ -1,5 +1,5 @@
-from enum import auto
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from datetime import timedelta, datetime, timezone
 from .models import Gear, GearCalculated, Sport, HRzones, Activity, Injury, Illness, ActivityAuto
 from .forms import GearForm, SportForm, HRzonesForm, ActivityForm, InjuryForm, IllnessForm
@@ -131,7 +131,7 @@ def activity_list(request):
     for activity in activity_list:
         activity.sport = activity.get_value('sport', '')
         activity.activity_type = activity.get_value('activity_type', timedelta(0))
-        activity.start_datetime = activity.get_value('start_datetime', '0001-01-01T00:00')
+        activity.start_datetime = activity.get_value('start_datetime', datetime(1, 1, 1, 0, 0))
         activity.start_timezone = activity.get_value('start_timezone', 'UTC')
         activity.moving_time = activity.get_value('moving_time', timedelta(0))
         activity.distance = activity.get_value('distance', 0)
@@ -140,26 +140,46 @@ def activity_list(request):
     return render(request, 'activity_list.html', {'activity_list': activity_list})
 
 def activity_add(request):
-    auto_id = request.session.pop('auto_id', None)
-    auto = ActivityAuto.objects.get(id=auto_id) if auto_id else None
+    auto_id = request.session.get('auto_id')
+    keep_auto = request.session.get('keep_auto_id', False)
+
+    # ❌ If it's a plain page refresh (GET without keep_auto flag), clear session
+    if request.method == 'GET' and not keep_auto:
+        request.session.pop('auto_id', None)
+        auto_id = None
+
+    auto = None
+    if auto_id:
+        try:
+            auto = ActivityAuto.objects.get(id=auto_id)
+        except ActivityAuto.DoesNotExist:
+            auto = None
 
     if request.method == 'POST':
         form = ActivityForm(request.POST, placeholder_data=auto)
+
         if form.is_valid():
             activity = form.save()
-            if auto is not None:
+            if auto:
                 auto.activity = activity
                 auto.save()
+            # ✅ Clear everything on success
             request.session.pop('auto_id', None)
+            request.session.pop('keep_auto_id', None)
             return redirect('activity_list')
+        else:
+            # ❗ On invalid form, keep session so it stays for re-render
+            if auto:
+                request.session['auto_id'] = auto.id
+                request.session['keep_auto_id'] = True
     else:
+        # ✅ If it's a GET *and* came from redirect, render the form and consume the flag
+        #if keep_auto:
+        #    request.session.pop('keep_auto_id', None)
+
         form = ActivityForm(placeholder_data=auto)
 
-    request.session['auto_id'] = auto_id
-    return render(request, 'activity_add.html', {
-        'form': form,
-    })
-
+    return render(request, 'activity_add.html', {'form': form})
 
 def activity_edit(request, pk):
     activity = get_object_or_404(Activity, pk=pk)
@@ -248,8 +268,12 @@ def activity_add_from_file(request):
                 )
             extracted['sport'] = sport
 
-        auto = ActivityAuto.objects.create(**extracted)
-        request.session['auto_id'] = auto.id
+            auto = ActivityAuto.objects.create(**extracted)
+            request.session['auto_id'] = auto.id
+            request.session['keep_auto_id'] = True
+
+        else:
+            messages.error(request, "Could not extract activity data from file.")
     return redirect('activity_add')
 
 

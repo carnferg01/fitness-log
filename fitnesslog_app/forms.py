@@ -1,7 +1,7 @@
 # forms.py
 from django import forms
 from .models import Gear, Sport, HRzones, Activity, Injury, Illness
-from django.core.exceptions import ValidationError
+from django.utils.safestring import mark_safe
 
 class GearForm(forms.ModelForm):
     class Meta:
@@ -36,6 +36,8 @@ class HRzonesForm(forms.ModelForm):
         }
 
 class ActivityForm(forms.ModelForm):
+    required_fields = ['sport', 'start_datetime', 'start_timezone', 'elapsed_time', 'moving_time']
+
     sport = forms.ModelChoiceField(
         queryset=Sport.objects.all(),
         widget=forms.Select(attrs={'class': 'form-control'}),
@@ -43,8 +45,20 @@ class ActivityForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         placeholder_obj = kwargs.pop('placeholder_data', None)
+        print("placeholderobj", placeholder_obj)
         self.file_default_sport = placeholder_obj.sport if placeholder_obj else None
+        print(self.file_default_sport)
         super().__init__(*args, **kwargs)
+
+        # Apply placeholder data if provided
+        if placeholder_obj:
+            for field_name in self.fields:
+                widget = self.fields[field_name].widget
+                if isinstance(widget, forms.TextInput) or isinstance(widget, forms.Textarea) or isinstance(widget, forms.NumberInput) or isinstance(widget, forms.DateTimeInput):
+                    value = getattr(placeholder_obj, field_name, None)
+                    if value:
+                        widget.attrs['placeholder'] = value
+
 
         # Apply Bootstrap class to all appropriate widgets
         for field_name, field in self.fields.items():
@@ -61,24 +75,29 @@ class ActivityForm(forms.ModelForm):
             self.fields['sport'].empty_label = f"{self.file_default_sport.name} (File default)"
             self.fields['sport'].required = False
         else:
-            self.fields['sport'].empty_label = "Select a sport"
+            self.fields['sport'].empty_label = "---------"
             self.fields['sport'].required = True
+
+        for field_name in self.required_fields:
+            if field_name in self.fields:
+                label = self.fields[field_name].label or field_name.replace('_', ' ').capitalize()
+                self.fields[field_name].label = mark_safe(f"{label} <span class='text-danger'>*</span>")
 
 
     def clean(self):
         cleaned_data = super().clean()
 
-        fields_to_check = ['start_datetime', 'start_timezone', 'elapsed_time', 'moving_time']
+        
         errors = {}
 
         auto = getattr(self.instance, 'auto', None)
 
-        for field in fields_to_check:
+        for field in self.required_fields:
             value = cleaned_data.get(field)
             auto_value = getattr(auto, field, None) if auto else None
 
             if not value and not auto_value:
-                errors[field] = f"Either '{field}' or 'auto.{field}' must be provided."
+                errors[field] = f" Specify by file or enter manually."
 
         for field, message in errors.items():
             self.add_error(field, message)
