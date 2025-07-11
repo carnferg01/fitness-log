@@ -4,6 +4,59 @@ from datetime import timedelta, datetime, timezone
 from .models import Gear, GearCalculated, Sport, HRzones, Activity, Injury, Illness, ActivityAuto
 from .forms import GearForm, SportForm, HRzonesForm, ActivityForm, InjuryForm, IllnessForm
 
+
+
+
+from django.db import models
+from django.apps import apps
+from django.utils.dateparse import parse_datetime, parse_date, parse_time
+
+
+
+def deserialize_model(serialized, model_label):
+    model_label = serialized.get('__model__')
+    raw_data = serialized.get('data')
+
+    if not model_label or not raw_data:
+        raise ValueError("Missing model label or data")
+
+    Model = apps.get_model(model_label)
+    if not issubclass(Model, models.Model):
+        raise TypeError("Not a Django model class")
+
+    instance_data = {}
+    for field in Model._meta.get_fields():
+        if not (hasattr(field, 'attname') and field.concrete):
+            continue
+
+        raw_value = raw_data.get(field.name)
+
+        if raw_value is None:
+            instance_data[field.name] = None
+            continue
+
+        if isinstance(field, models.DateTimeField):
+            instance_data[field.name] = parse_datetime(raw_value)
+        elif isinstance(field, models.DateField):
+            instance_data[field.name] = parse_date(raw_value)
+        elif isinstance(field, models.TimeField):
+            instance_data[field.name] = parse_time(raw_value)
+        elif isinstance(field, models.DurationField):
+            instance_data[field.name] = timedelta(seconds=float(raw_value))
+        elif isinstance(field, models.ForeignKey):
+            instance_data[field.name + "_id"] = raw_value
+        else:
+            instance_data[field.name] = raw_value
+
+    return Model(**instance_data)  # Unsaved instance
+
+
+
+
+
+
+
+
 def summary(request):
     return render(request, 'summary.html')
 
@@ -127,6 +180,9 @@ def hrzones_delete(request, pk):
 
 
 def activity_list(request):
+    request.session.pop('activityAuto_id', None)
+    ActivityAuto.objects.filter(activity__isnull=True).delete()
+
     activity_list = Activity.objects.select_related('sport', 'auto')
     for activity in activity_list:
         activity.sport = activity.get_value('sport', '')
@@ -140,58 +196,91 @@ def activity_list(request):
     return render(request, 'activity_list.html', {'activity_list': activity_list})
 
 def activity_add(request):
-    auto_id = request.session.get('auto_id')
-    keep_auto = request.session.get('keep_auto_id', False)
-
-    # ❌ If it's a plain page refresh (GET without keep_auto flag), clear session
-    if request.method == 'GET' and not keep_auto:
-        request.session.pop('auto_id', None)
-        auto_id = None
-
+   
     auto = None
-    if auto_id:
-        try:
-            auto = ActivityAuto.objects.get(id=auto_id)
-        except ActivityAuto.DoesNotExist:
-            auto = None
-
+    
     if request.method == 'POST':
-        form = ActivityForm(request.POST, placeholder_data=auto)
-
-        if form.is_valid():
-            activity = form.save()
-            if auto:
-                auto.activity = activity
+        if 'upload_button' in request.POST:
+            # Button A clicked
+            uploaded_file = request.FILES.get('activity_file')
+            if uploaded_file:
+                # Example: read and parse file data here
+                # For simplicity, assume it's a CSV with 'name,age'
+                
+                parsed_data = parse_file(uploaded_file)
+                auto = ActivityAuto(**parsed_data)
                 auto.save()
-            # ✅ Clear everything on success
-            request.session.pop('auto_id', None)
-            request.session.pop('keep_auto_id', None)
-            return redirect('activity_list')
-        else:
-            # ❗ On invalid form, keep session so it stays for re-render
-            if auto:
-                request.session['auto_id'] = auto.id
-                request.session['keep_auto_id'] = True
-    else:
-        # ✅ If it's a GET *and* came from redirect, render the form and consume the flag
-        #if keep_auto:
-        #    request.session.pop('keep_auto_id', None)
+                request.session['activityAuto_id'] = auto.id
+                return redirect('activity_add')
+            else:
+                messages.error(request, "No file uploaded.")
+                return redirect('activity_add')
 
-        form = ActivityForm(placeholder_data=auto)
 
+            #     form = ActivityForm(activity_auto=request.session['activity_activity_auto'])
+            #     return render(request, 'activity_add.html', {
+            #         'form': form,
+            #         'activity_auto': request.session['activity_activity_auto']
+            #     })
+            # else:
+            #     messages.error(request, "No file uploaded.")
+            
+            #     form = ActivityForm()
+            #     return render(request, 'activity_add.html', {
+            #         'form': form,
+            #         'activity_auto': {}
+            #     })
+                
+
+            
+
+        elif 'submit_button' in request.POST:
+            auto_id = request.session.get('activityAuto_id', None)
+
+            if auto_id:
+                auto = ActivityAuto.objects.get(id=auto_id)
+                form = ActivityForm(request.POST, activity_auto=auto)
+            
+                if form.is_valid():
+                    request.session.pop('activityAuto_id', None)  # cleanup
+                    # Process valid form data
+                    activity_instance = form.save()  # saves the activity instance
+                    auto.activity = activity_instance
+                    auto.save()
+                    return redirect('activity_list')
+                else:
+                    # Preserve entered values and show errors
+                    return render(request, 'activity_add.html', {'form': form})
+            else:
+                form = ActivityForm(request.POST)
+                if form.is_valid():
+                    form.save()  # saves the activity instance
+                    return redirect('activity_list')
+                else:
+                    # Preserve entered values and show errors
+                    return render(request, 'activity_add.html', {'form': form})
+
+
+
+    # GET request (including after redirect)
+    auto_id = request.session.get('activityAuto_id', None)
+    auto = ActivityAuto.objects.filter(id=auto_id).first()
+    form = ActivityForm(activity_auto=auto)
     return render(request, 'activity_add.html', {'form': form})
+
+
 
 def activity_edit(request, pk):
     activity = get_object_or_404(Activity, pk=pk)
     auto = activity.auto if hasattr(activity, 'auto') else None
     
     if request.method == 'POST':
-        form = ActivityForm(request.POST, instance=activity, placeholder_data=auto)
+        form = ActivityForm(request.POST, instance=activity, activity_auto=auto)
         if form.is_valid():
             form.save()
             return redirect('activity_list')  # change as needed
     else:
-        form = ActivityForm(instance=activity, placeholder_data=auto)
+        form = ActivityForm(instance=activity, activity_auto=auto)
     return render(request, 'activity_edit.html', {'form': form, 'activity': activity})
 
 def activity_delete(request, pk):
@@ -230,7 +319,7 @@ def parse_file(file):
     #     'calories': 1200,
     # } 
 
-    return {
+    data = {
         'sport': 'boxing',  # Set this to an actual Activity instance before saving
         'file': None,  # FileField expects a file object or file path when saving
         'start_latitude': 51.5074,
@@ -252,29 +341,35 @@ def parse_file(file):
         'weather': 'Sunny, 20°C',
         'calories': 1200,
     }
+    data["sport"] = Sport.objects.get(name=data["sport"])
+    return data
+
 
 def activity_add_from_file(request):
-    if request.method == 'POST' and 'activity_file' in request.FILES:
+    if request.method == 'POST':
+        print("post")
+
+        # Extract data
         file = request.FILES['activity_file']
-        extracted = parse_file(file)
-        
-        if extracted:
-            sport, sport_created_bool = Sport.objects.get_or_create(
-                    name=extracted['sport'],
-                    defaults={
-                        'colour': '#000000',  # default grey
-                        'impact': True,
-                    }
-                )
-            extracted['sport'] = sport
-
-            auto = ActivityAuto.objects.create(**extracted)
-            request.session['auto_id'] = auto.id
-            request.session['keep_auto_id'] = True
-
+        extracted_data = parse_file(file)
+        if extracted_data:
+            messages.success(request, "File data extracted successfully.")
         else:
-            messages.error(request, "Could not extract activity data from file.")
-    return redirect('activity_add')
+            messages.error(request, "Could not extract data from file.")
+            return redirect('activity_add')
+            
+        # Fill and validate form
+        form = ActivityForm(request.POST, activity_auto=extracted_data)
+        if form.is_valid():
+            print("form valid")
+            activity = form.save()
+            # Save the ActivityAuto instance
+            return redirect('activity_list')
+        else:
+            print("form not valid")
+            return render(request, 'activity_add.html', {'form': form})
+
+
 
 
 ########################################################################

@@ -2,6 +2,7 @@
 from django import forms
 from .models import Gear, Sport, HRzones, Activity, Injury, Illness
 from django.utils.safestring import mark_safe
+from django.forms import ChoiceField
 
 class GearForm(forms.ModelForm):
     class Meta:
@@ -44,20 +45,33 @@ class ActivityForm(forms.ModelForm):
     )
 
     def __init__(self, *args, **kwargs):
-        placeholder_obj = kwargs.pop('placeholder_data', None)
-        print("placeholderobj", placeholder_obj)
-        self.file_default_sport = placeholder_obj.sport if placeholder_obj else None
-        print(self.file_default_sport)
+        # Get auto
+        self.auto = kwargs.pop('activity_auto', None)
+        # convert json->object
+
         super().__init__(*args, **kwargs)
 
-        # Apply placeholder data if provided
-        if placeholder_obj:
-            for field_name in self.fields:
-                widget = self.fields[field_name].widget
-                if isinstance(widget, forms.TextInput) or isinstance(widget, forms.Textarea) or isinstance(widget, forms.NumberInput) or isinstance(widget, forms.DateTimeInput):
-                    value = getattr(placeholder_obj, field_name, None)
-                    if value:
-                        widget.attrs['placeholder'] = value
+        if self.auto:
+            # For each field
+            for field_name, field in self.fields.items():
+                widget = field.widget
+
+                # Set placeholder if widget supports it and value exists
+                if isinstance(widget, (forms.TextInput, forms.Textarea, forms.NumberInput, forms.DateTimeInput)):
+                    value = getattr(self.auto, field_name, None)
+                    if value is not None:
+                        widget.attrs['placeholder'] = str(value)
+
+                # Custom empty label for sport
+                if isinstance(field, ChoiceField):
+                    auto_value = getattr(self.auto, field_name, None)
+                    if auto_value:
+                        # Show default option label from file
+                        field.empty_label = f"{auto_value} (File default)"
+                        field.required = False
+                    else:
+                        field.empty_label = "---------"
+                        field.required = True
 
 
         # Apply Bootstrap class to all appropriate widgets
@@ -71,30 +85,17 @@ class ActivityForm(forms.ModelForm):
                     classes.append('form-control')
                 widget.attrs['class'] = ' '.join(classes)
 
-        if self.file_default_sport:
-            self.fields['sport'].empty_label = f"{self.file_default_sport.name} (File default)"
-            self.fields['sport'].required = False
-        else:
-            self.fields['sport'].empty_label = "---------"
-            self.fields['sport'].required = True
-
         for field_name in self.required_fields:
             if field_name in self.fields:
                 label = self.fields[field_name].label or field_name.replace('_', ' ').capitalize()
                 self.fields[field_name].label = mark_safe(f"{label} <span class='text-danger'>*</span>")
-
-
+        
     def clean(self):
         cleaned_data = super().clean()
-
-        
         errors = {}
-
-        auto = getattr(self.instance, 'auto', None)
-
         for field in self.required_fields:
             value = cleaned_data.get(field)
-            auto_value = getattr(auto, field, None) if auto else None
+            auto_value = getattr(self.auto, field) if self.auto else None
 
             if not value and not auto_value:
                 errors[field] = f" Specify by file or enter manually."
