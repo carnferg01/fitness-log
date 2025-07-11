@@ -236,36 +236,26 @@ def activity_add(request):
 
         elif 'submit_button' in request.POST:
             auto_id = request.session.get('activityAuto_id', None)
+            auto = ActivityAuto.objects.filter(id=auto_id).first() if auto_id else None
 
-            if auto_id:
-                auto = ActivityAuto.objects.get(id=auto_id)
-                form = ActivityForm(request.POST, activity_auto=auto)
-            
-                if form.is_valid():
-                    request.session.pop('activityAuto_id', None)  # cleanup
-                    # Process valid form data
-                    activity_instance = form.save()  # saves the activity instance
+            form = ActivityForm(request.POST, activity_auto=auto)
+
+            if form.is_valid():
+                request.session.pop('activityAuto_id', None)
+                activity_instance = form.save()
+                if auto:
                     auto.activity = activity_instance
                     auto.save()
-                    return redirect('activity_list')
-                else:
-                    # Preserve entered values and show errors
-                    return render(request, 'activity_add.html', {'form': form})
+                return redirect('activity_list')
             else:
-                form = ActivityForm(request.POST)
-                if form.is_valid():
-                    form.save()  # saves the activity instance
-                    return redirect('activity_list')
-                else:
-                    # Preserve entered values and show errors
-                    return render(request, 'activity_add.html', {'form': form})
-
+                # Form has errors, return it with POST data and auto
+                return render(request, 'activity_add.html', {'form': form})
 
 
     # GET request (including after redirect)
     auto_id = request.session.get('activityAuto_id', None)
     auto = ActivityAuto.objects.filter(id=auto_id).first()
-    form = ActivityForm(activity_auto=auto)
+    form = ActivityForm(request.POST, activity_auto=auto)
     return render(request, 'activity_add.html', {'form': form})
 
 
