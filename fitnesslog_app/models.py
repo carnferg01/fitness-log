@@ -31,7 +31,7 @@ class GearCalculated(models.Model):
     def recalculate_all_gear():
         # TODO: This should be make efficent using Django ORM aggregations
         for gear in Gear.objects.all():
-            activities = gear.activities.where(gear__contains=gear).select_related('auto')
+            activities = gear.activities.filter(gear=gear).select_related('auto')
 
             total_elapsed_time = timedelta(0)
             total_distance = 0.0
@@ -42,27 +42,32 @@ class GearCalculated(models.Model):
 
             for activity in activities:
                 # Use field from Activity if not None, otherwise fall back to Activity.auto
-                auto = getattr(activity, 'auto', None)
+                #auto = getattr(activity, 'auto', None)
 
                 # Choose distance
                 total_elapsed_time += activity.get_value('time_elapsed', timedelta(0))
                 total_distance += activity.get_value('distance', 0)
                 total_climb += activity.get_value('distance', 0)
-                start_dt = activity.get_value(auto, 'start_datetime', 0)
-                if start_dt > last_used:
-                    last_used = start_dt
-                if start_dt < first_used:
-                    first_used = start_dt
+                start_time = activity.get_value('start_datetime', None)
+                if start_time:
+                    if first_used is None or start_time < first_used:
+                        first_used = start_time
+                    if last_used is None or start_time > last_used:
+                        last_used = start_time
                 count += 1
 
             # Update or create GearCalculated
-            gc, _ = GearCalculated.objects.get_or_create(gear=gear)
-            gc.time_elapsed = total_elapsed_time
-            gc.distance = total_distance
-            gc.climb = total_climb
-            gc.session_count = count
-            gc.first_used = first_used
-            gc.last_used = last_used
+            gc, created = GearCalculated.objects.update_or_create(
+                gear=gear,
+                defaults={
+                    'time_elapsed': total_elapsed_time,
+                    'distance': total_distance,
+                    'climb': total_climb,
+                    'session_count': count,
+                    'first_used': first_used,
+                    'last_used': last_used,
+                }
+            )
             gc.save()
 
 class Sport(models.Model):

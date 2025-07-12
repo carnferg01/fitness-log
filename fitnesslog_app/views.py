@@ -1,64 +1,31 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from datetime import timedelta, datetime, timezone
-from .models import Gear, GearCalculated, Sport, HRzones, Activity, Injury, Illness, ActivityAuto
-from .forms import GearForm, SportForm, HRzonesForm, ActivityForm, InjuryForm, IllnessForm
+from .models import *
+from .forms import *
 
 
-
-
-from django.db import models
-from django.apps import apps
-from django.utils.dateparse import parse_datetime, parse_date, parse_time
-
-
-
-def deserialize_model(serialized, model_label):
-    model_label = serialized.get('__model__')
-    raw_data = serialized.get('data')
-
-    if not model_label or not raw_data:
-        raise ValueError("Missing model label or data")
-
-    Model = apps.get_model(model_label)
-    if not issubclass(Model, models.Model):
-        raise TypeError("Not a Django model class")
-
-    instance_data = {}
-    for field in Model._meta.get_fields():
-        if not (hasattr(field, 'attname') and field.concrete):
-            continue
-
-        raw_value = raw_data.get(field.name)
-
-        if raw_value is None:
-            instance_data[field.name] = None
-            continue
-
-        if isinstance(field, models.DateTimeField):
-            instance_data[field.name] = parse_datetime(raw_value)
-        elif isinstance(field, models.DateField):
-            instance_data[field.name] = parse_date(raw_value)
-        elif isinstance(field, models.TimeField):
-            instance_data[field.name] = parse_time(raw_value)
-        elif isinstance(field, models.DurationField):
-            instance_data[field.name] = timedelta(seconds=float(raw_value))
-        elif isinstance(field, models.ForeignKey):
-            instance_data[field.name + "_id"] = raw_value
-        else:
-            instance_data[field.name] = raw_value
-
-    return Model(**instance_data)  # Unsaved instance
-
-
-
-
-
-
-
+#######################################################################
+### Summaries
 
 def summary(request):
     return render(request, 'summary.html')
+
+def summary_myday(request):
+    #return render(request, 'summary_myday.html')
+    data = None
+    form = MydayForm(request.GET or None)
+
+    if form.is_valid():
+        selected_date = form.cleaned_data['date']
+        
+        # Simulated data – replace this with a DB query etc.
+        data = {
+            'message': f"Data for {selected_date.strftime('%Y-%m-%d')}",
+            'extra': f"You can add more data for {selected_date}"
+        }
+
+    return render(request, 'summary_myday.html', {'form': form, 'data': data})
 
 
 #######################################################################

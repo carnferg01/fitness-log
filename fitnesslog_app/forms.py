@@ -63,7 +63,7 @@ class ActivityForm(forms.ModelForm):
                         widget.attrs['placeholder'] = str(value)
 
                 # Custom empty label for sport
-                if isinstance(field, ChoiceField):
+                if field_name == 'sport': #isinstance(field, ChoiceField):
                     auto_value = getattr(self.auto, field_name, None)
                     if auto_value:
                         # Show default option label from file
@@ -128,7 +128,8 @@ class ActivityForm(forms.ModelForm):
             'elevation_min',
             'time_at_HR',
             'time_at_pace',
-            'calories'
+            'calories',
+            'gear'
         ]
 
 class InjuryForm(forms.ModelForm):
@@ -140,3 +141,10 @@ class IllnessForm(forms.ModelForm):
     class Meta:
         model = Illness
         fields = ['title', 'start_datetime', 'location', 'notes', 'severity']
+
+class MydayForm(forms.Form):
+    date = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        required=True,
+        label='Pick a date'
+    )

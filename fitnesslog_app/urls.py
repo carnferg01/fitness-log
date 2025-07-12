@@ -1,8 +1,13 @@
 from django.urls import path
 from . import views
+from django.views.generic import RedirectView
 
 urlpatterns = [
+
+    # Summary
     path('', views.summary, name='summary'),
+    path('summary', RedirectView.as_view(pattern_name='summary', permanent=False)),
+    path('myday', views.summary_myday, name='summary_myday'),
 
     # Gear
     path('gear/', views.gear_list, name='gear_list'),

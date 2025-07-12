@@ -25,6 +25,7 @@
                 <th>Retired</th>
                 <th>First used</th>
                 <th>Last used</th>
+                <th>Elapsed time</th>
                 <th>Distance</th>
                 <th>Climb</th>
                 <th>Session count</th>
@@ -49,6 +50,9 @@
                 </td>
                 <td>
                     {{ gear_item.calculated.last_used }}
+                </td>
+                <td>
+                    {{ gear_item.calculated.time_elapsed }}
                 </td>
                 <td>
                     {{ gear_item.calculated.distance }}
