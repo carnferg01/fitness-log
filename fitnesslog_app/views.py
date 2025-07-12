@@ -281,33 +281,36 @@ def activity_delete(request, pk):
     return render(request, 'confirm_delete.html', {'activity': activity})
 
 def parse_file(file):
-    # Placeholder for actual file analysis logic
     # Return a dictionary of extracted values
 
-    
+    ## Data collector class
+    auto = ActivityAuto()
 
-    # return {
-    #     'sport': 'boxing',  # Set this to an actual Activity instance before saving
-    #     'file': None,  # FileField expects a file object or file path when saving
-    #     'start_latitude': 51.5074,
-    #     'start_longitude': -0.1278,
-    #     'start_datetime': '2025-07-10T07:30:00',  # ISO 8601 string or a datetime object
-    #     'start_timezone': 'UTC',
-    #     'elapsed_time': '01:30:00',  # timedelta or string 'HH:MM:SS'
-    #     'tracked_time': '01:20:00',
-    #     'moving_time': '01:15:00',
-    #     'distance': 15.2,
-    #     'elevation_gain': 250.5,
-    #     'elevation_loss': 240.3,
-    #     'elevation_max': 180.0,
-    #     'elevation_min': 50.0,
-    #     'time_at_HR': '{"zone1": "00:10:00", "zone2": "00:30:00"}',  # JSON string
-    #     'time_at_pace': '{"pace1": "00:15:00", "pace2": "01:15:00"}',
-    #     'best_sustained_pace': 4.35,
-    #     'device': 'Garmin Forerunner 945',
-    #     'weather': 'Sunny, 20°C',
-    #     'calories': 1200,
-    # } 
+    ## Data collector variables
+    # Time
+    time_start = None
+    time_end = None
+    time_moving = timedelta(0)
+    min_moving_pace = 0.3
+
+    # Pace
+
+
+    # speed zones
+    bin_width = 0.5     # km/h
+    speed_binned = []
+
+
+    ## Get file type
+    
+    # If gpx
+    #   TODO
+    # If fit
+    #   Open file
+    # Else
+    #   message error
+    #   return None
+    
 
     data = {
         'sport': 'boxing',  # Set this to an actual Activity instance before saving
@@ -333,33 +336,6 @@ def parse_file(file):
     }
     data["sport"] = Sport.objects.get(name=data["sport"])
     return data
-
-
-def activity_add_from_file(request):
-    if request.method == 'POST':
-        print("post")
-
-        # Extract data
-        file = request.FILES['activity_file']
-        extracted_data = parse_file(file)
-        if extracted_data:
-            messages.success(request, "File data extracted successfully.")
-        else:
-            messages.error(request, "Could not extract data from file.")
-            return redirect('activity_add')
-            
-        # Fill and validate form
-        form = ActivityForm(request.POST, activity_auto=extracted_data)
-        if form.is_valid():
-            print("form valid")
-            activity = form.save()
-            # Save the ActivityAuto instance
-            return redirect('activity_list')
-        else:
-            print("form not valid")
-            return render(request, 'activity_add.html', {'form': form})
-
-
 
 
 ########################################################################

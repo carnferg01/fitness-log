@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.db import models
 
 class Gear(models.Model):
@@ -17,6 +18,7 @@ class GearCalculated(models.Model):
     gear = models.OneToOneField(Gear, on_delete=models.CASCADE, related_name='calculated')
     last_calculated = models.DateTimeField(auto_now=True)
 
+    time_elapsed = models.DurationField(null=True, blank=True)
     first_used = models.DateTimeField(null=True, blank=True)
     last_used = models.DateTimeField(null=True, blank=True)
     distance = models.FloatField(default=0.0)  # km
@@ -29,8 +31,9 @@ class GearCalculated(models.Model):
     def recalculate_all_gear():
         # TODO: This should be make efficent using Django ORM aggregations
         for gear in Gear.objects.all():
-            activities = gear.activities.select_related('auto')
+            activities = gear.activities.where(gear__contains=gear).select_related('auto')
 
+            total_elapsed_time = timedelta(0)
             total_distance = 0.0
             total_climb = 0.0
             first_used = None
@@ -42,36 +45,19 @@ class GearCalculated(models.Model):
                 auto = getattr(activity, 'auto', None)
 
                 # Choose distance
-                distance = (
-                    activity.distance if activity.distance is not None
-                    else (auto.distance if auto and auto.distance is not None else 0.0)
-                )
-                climb = (
-                    activity.elevation_gain if activity.elevation_gain is not None
-                    else (auto.elevation_gain if auto and auto.elevation_gain is not None else 0.0)
-                )
-
-                # Use start_datetime from Activity or fallback to Auto
-                start_dt = (
-                    activity.start_datetime if activity.start_datetime
-                    else (auto.start_datetime if auto else None)
-                )
-
-                # Update total fields
-                total_distance += distance
-                total_climb += climb
+                total_elapsed_time += activity.get_value('time_elapsed', timedelta(0))
+                total_distance += activity.get_value('distance', 0)
+                total_climb += activity.get_value('distance', 0)
+                start_dt = activity.get_value(auto, 'start_datetime', 0)
+                if start_dt > last_used:
+                    last_used = start_dt
+                if start_dt < first_used:
+                    first_used = start_dt
                 count += 1
-
-                # Update first/last used
-                if start_dt:
-                    if not first_used or start_dt < first_used:
-                        first_used = start_dt
-                    if not last_used or start_dt > last_used:
-                        last_used = start_dt
 
             # Update or create GearCalculated
             gc, _ = GearCalculated.objects.get_or_create(gear=gear)
-
+            gc.time_elapsed = total_elapsed_time
             gc.distance = total_distance
             gc.climb = total_climb
             gc.session_count = count
