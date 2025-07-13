@@ -18,13 +18,13 @@
         >{{ field.value|default_if_none:'' }}</textarea>
 
       {% elif field.field.widget.input_type == "select" %}
+      
         <select
           name="{{ field.name }}"
           class="form-select{% if field.errors %} is-invalid{% endif %}"
-          id="{{ field.id_for_label }}"
-        >
+          id="{{ field.id_for_label }}">
           {% for option in field.field.choices %}
-            <option value="{{ option.0 }}" {% if option.0 == field.value %}selected{% endif %}>
+            <option value="{{ option.0 }}" {% if option.0|stringformat:"s" == field.value|stringformat:"s" %}selected{% endif %}>
               {{ option.1 }}
             </option>
           {% endfor %}
@@ -41,36 +41,6 @@
         >
       {% endif %}
     {% endwith %}
-
-    {% comment %} {% if field.field.widget.input_type == "textarea" %}
-      <textarea
-        name="{{ field.name }}"
-        class="form-control{% if field.errors %} is-invalid{% endif %}"
-        id="{{ field.id_for_label }}"
-      >{{ field.value|default_if_none:'' }}</textarea>
-
-    {% elif field.field.widget.input_type == "select" %}
-      <select
-        name="{{ field.name }}"
-        class="form-select{% if field.errors %} is-invalid{% endif %}"
-        id="{{ field.id_for_label }}"
-      >
-        {% for option in field.field.choices %}
-          <option value="{{ option.0 }}" {% if option.0 == field.value %}selected{% endif %}>
-            {{ option.1 }}
-          </option>
-        {% endfor %}
-      </select>
-
-    {% else %}
-      <input
-        type="{{ field.field.widget.input_type }}"
-        name="{{ field.name }}"
-        class="form-control{% if field.errors %} is-invalid{% endif %}"
-        id="{{ field.id_for_label }}"
-        value="{{ field.value|default_if_none:'' }}"
-      >
-    {% endif %} {% endcomment %}
 
     {% if field.errors %}
       <div class="invalid-feedback">

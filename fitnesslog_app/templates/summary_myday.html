@@ -9,7 +9,8 @@
     .form-group { margin-bottom: 1em; }
 </style>
 
-<form id="date-form" method="get">
+<form id="date-form" method="post">
+    {% csrf_token %}
     <div class="form-group">
         {{ form.date.label_tag }}
         {{ form.date }}
@@ -27,16 +28,14 @@
         const dateInput = document.querySelector("input[type='date']");
         const form = document.getElementById("date-form");
 
-        // If no date was pre-filled from the server, set today
         if (!dateInput.value) {
             const today = new Date().toISOString().split('T')[0];
             dateInput.value = today;
-            form.submit();  // submit form immediately with today's date
+            form.submit();  // submit once with today's date
         }
 
-        // Submit when user changes date manually
         dateInput.addEventListener("change", function () {
-            form.submit();
+            form.submit();  // also submit on manual change
         });
     });
 </script>

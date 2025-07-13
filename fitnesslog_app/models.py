@@ -1,5 +1,9 @@
 from datetime import timedelta
+from time import localtime
 from django.db import models
+import pytz
+TIMEZONE_CHOICES = [(tz, tz) for tz in pytz.common_timezones]
+
 
 class Gear(models.Model):
     id = models.AutoField(primary_key=True)
@@ -115,8 +119,13 @@ class Activity(models.Model):
     gear = models.ManyToManyField(Gear, blank=True, related_name='activities')
     note = models.TextField(blank=True, null=True)
 
-    start_datetime = models.DateTimeField(blank=True, null=True)  # UTC
-    start_timezone = models.CharField(max_length=100, blank=True, null=True)
+    start_datetime_utc = models.DateTimeField(blank=True, null=True)
+    start_timezone = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
+    def get_local_datetime(self):
+        """Returns the UTC datetime converted to its original time zone."""
+        return localtime(self.start_datetime_utc, pytz.timezone(self.start_timezone))
+
+    
     elapsed_time = models.DurationField(blank=True, null=True)  # Total time spent
     tracked_time = models.DurationField(blank=True, null=True)  # Time actively tracked
     moving_time = models.DurationField(blank=True, null=True)  # Time spent moving
@@ -151,8 +160,12 @@ class ActivityAuto(models.Model):
     start_latitude = models.FloatField(blank=True, null=True)
     start_longitude = models.FloatField(blank=True, null=True)
 
-    start_datetime = models.DateTimeField() # UTC
-    start_timezone = models.CharField(max_length=100, default='UTC')
+    start_datetime_utc = models.DateTimeField(blank=True, null=True)
+    start_timezone = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
+    def get_local_datetime(self):
+        """Returns the UTC datetime converted to its original time zone."""
+        return localtime(self.start_datetime_utc, pytz.timezone(self.start_timezone))
+
     elapsed_time = models.DurationField()  # Total time spent
     tracked_time = models.DurationField()  # Time actively tracked
     moving_time = models.DurationField()  # Time spent moving

@@ -12,18 +12,18 @@ def summary(request):
     return render(request, 'summary.html')
 
 def summary_myday(request):
-    #return render(request, 'summary_myday.html')
     data = None
-    form = MydayForm(request.GET or None)
 
-    if form.is_valid():
-        selected_date = form.cleaned_data['date']
-        
-        # Simulated data – replace this with a DB query etc.
-        data = {
-            'message': f"Data for {selected_date.strftime('%Y-%m-%d')}",
-            'extra': f"You can add more data for {selected_date}"
-        }
+    if request.method == 'POST':
+        form = MydayForm(request.POST)
+        if form.is_valid():
+            selected_date = form.cleaned_data['date']
+            data = {
+                'message': f"Data for {selected_date}",
+                'extra': f"More content for {selected_date}",
+            }
+    else:
+        form = MydayForm()  # empty form on first load
 
     return render(request, 'summary_myday.html', {'form': form, 'data': data})
 

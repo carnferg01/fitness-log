@@ -1,5 +1,6 @@
 # forms.py
 from django import forms
+import pytz
 from .models import Gear, Sport, HRzones, Activity, Injury, Illness
 from django.utils.safestring import mark_safe
 from django.forms import ChoiceField
@@ -43,6 +44,7 @@ class ActivityForm(forms.ModelForm):
         queryset=Sport.objects.all(),
         widget=forms.Select(attrs={'class': 'form-control'}),
     )
+    start_datetime_local = forms.DateTimeField(label="Event time (your local time)")
 
     def __init__(self, *args, **kwargs):
         # Get auto
@@ -62,16 +64,22 @@ class ActivityForm(forms.ModelForm):
                     if value is not None:
                         widget.attrs['placeholder'] = str(value)
 
-                # Custom empty label for sport
-                if field_name == 'sport': #isinstance(field, ChoiceField):
+                if isinstance(field, forms.ModelChoiceField):
                     auto_value = getattr(self.auto, field_name, None)
                     if auto_value:
-                        # Show default option label from file
-                        field.empty_label = f"{auto_value} (File default)"
+                        # Set placeholder
+                        field.empty_label = f"{auto_value} (From file)"
+                    #else:
+                        # Fallback
+                    #    field.empty_label = "Select an option"
+                # # Custom empty label for sport
+                if field_name == 'sport': #isinstance(field, ChoiceField):
+                    if getattr(self.auto, field_name, None):
+                        # has auto value
                         field.required = False
                     else:
-                        field.empty_label = "---------"
-                        field.required = True
+                        # don't have auto value
+                        field.required = True      
 
 
         # Apply Bootstrap class to all appropriate widgets
@@ -92,6 +100,17 @@ class ActivityForm(forms.ModelForm):
         
     def clean(self):
         cleaned_data = super().clean()
+
+        # Clearn start_datetime
+        naive_dt = cleaned_data.get('start_datetime_local')
+        tz_str = cleaned_data.get('start_timezone')
+        if naive_dt and tz_str:
+            user_tz = pytz.timezone(tz_str)
+            localized_dt = user_tz.localize(naive_dt)
+            utc_dt = localized_dt.astimezone(pytz.UTC)
+            cleaned_data['start_datetime_utc'] = utc_dt
+
+        # ensure some value is present
         errors = {}
         for field in self.required_fields:
             value = cleaned_data.get(field)
@@ -105,7 +124,12 @@ class ActivityForm(forms.ModelForm):
 
         return cleaned_data
 
-
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.start_datetime_utc = self.cleaned_data['start_datetime_utc']
+        if commit:
+            instance.save()
+        return instance
 
     class Meta:
         model = Activity
@@ -116,7 +140,7 @@ class ActivityForm(forms.ModelForm):
             'intensity',
             'feeling',
             'terrain',
-            'start_datetime',
+            'start_datetime_local',
             'start_timezone',
             'elapsed_time',
             'tracked_time',
