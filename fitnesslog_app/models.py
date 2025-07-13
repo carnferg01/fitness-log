@@ -121,7 +121,7 @@ class Activity(models.Model):
 
     start_datetime_utc = models.DateTimeField(blank=True, null=True)
     start_timezone = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
-    def get_local_datetime(self):
+    def get_start_datetime_local(self):
         """Returns the UTC datetime converted to its original time zone."""
         return localtime(self.start_datetime_utc, pytz.timezone(self.start_timezone))
 
@@ -162,7 +162,7 @@ class ActivityAuto(models.Model):
 
     start_datetime_utc = models.DateTimeField(blank=True, null=True)
     start_timezone = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
-    def get_local_datetime(self):
+    def get_start_datetime_local(self):
         """Returns the UTC datetime converted to its original time zone."""
         return localtime(self.start_datetime_utc, pytz.timezone(self.start_timezone))
 
