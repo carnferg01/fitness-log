@@ -15,30 +15,33 @@
 <div style="overflow-x: auto; max-width: 100%; border: 1px solid #ddd;">
     <table class="table table-striped table-bordered mb-0">
         <thead class="table-light">
-            <tr>
+            <tr class="align-middle">
+                <th></th>
                 <th>sport</th>
                 <th>activity_type</th>
-                <th>start_datetime</th>
+                <th>start_datetime_utc</th>
                 <th>start_timezone</th>
                 <th>moving_time</th>
                 <th>distance</th>
                 <th>elevation_gain</th>
                 <th>calories</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
-        {% for activity in activity_list %}
-            <tr>
-                <td style="background-color: {{ activity.sport.colour }}; color: {{ activity.sport.colour|contrast_text }};">{{ activity.sport.name }}</td>
-                <td>{{ activity.activity_type }}</td>
-                <td>{{ activity.start_datetime }}</td>
-                <td>{{ activity.start_timezone }}</td>
-                <td>{{ activity.moving_time }}</td>
-                <td>{{ activity.distance }}</td>
-                <td>{{ activity.elevation_gain }}</td>
-                <td>{{ activity.calories }}</td>
+        {% for vm in viewmodels %}
+            <tr class="align-middle">
+                <td style="background-color: {{ vm.sport.colour }};"></td>
+                <td>{{ vm.sport.name }}</td>
+                <td>{{ vm.activity_type }}</td>
+                <td>{{ vm.start_datetime_utc|date:"Y-m-d H:i:s" }}</td>
+                <td>{{ vm.start_timezone }}</td>
+                <td>{{ vm.moving_time }}</td>
+                <td>{{ vm.distance }}</td>
+                <td>{{ vm.elevation_gain }}</td>
+                <td>{{ vm.calories }}</td>
                 <td>
-                    <a href="{% url 'activity_edit' activity.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    <a href="{% url 'activity_edit' vm.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
                 </td>
             </tr>
         {% empty %}

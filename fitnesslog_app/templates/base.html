@@ -11,5 +11,18 @@
     {% block content %}{% endblock %}
     <!-- Bootstrap 5 JS Bundle (includes Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Timezone stuff -->
+    <script>
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        fetch("{% url 'set_timezone' %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ timezone: tz })
+        });
+    </script>
 </body>
 </html>

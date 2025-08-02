@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, timezone
 from time import localtime
 from django.db import models
 import pytz
@@ -76,7 +76,7 @@ class GearCalculated(models.Model):
 
 class Sport(models.Model):
     id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     colour = models.CharField(max_length=7, default='#000000')  # Hex color code
     description = models.TextField(blank=True)
     impact = models.BooleanField()
@@ -119,12 +119,11 @@ class Activity(models.Model):
     gear = models.ManyToManyField(Gear, blank=True, related_name='activities')
     note = models.TextField(blank=True, null=True)
 
-    start_datetime_utc = models.DateTimeField(blank=True, null=True)
-    start_timezone = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
-    def get_start_datetime_local(self):
-        """Returns the UTC datetime converted to its original time zone."""
-        return localtime(self.start_datetime_utc, pytz.timezone(self.start_timezone))
+    # user = users current timezone
+    #  = activity timezone
 
+    start_timezone = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
+    start_datetime_utc = models.DateTimeField(blank=True, null=True)
     
     elapsed_time = models.DurationField(blank=True, null=True)  # Total time spent
     tracked_time = models.DurationField(blank=True, null=True)  # Time actively tracked
@@ -154,17 +153,14 @@ class Activity(models.Model):
 
 class ActivityAuto(models.Model):
     id = models.AutoField(primary_key=True)
-    activity = models.OneToOneField(Activity, on_delete=models.CASCADE, null=True, related_name='auto')
+    activity = models.OneToOneField(Activity, on_delete=models.CASCADE, null=True, related_name='activityauto')
     file = models.FileField(upload_to="activity_files_uploads/")
     sport = models.ForeignKey(Sport, on_delete=models.CASCADE, related_name='activityautos', blank=True, null=True)
     start_latitude = models.FloatField(blank=True, null=True)
     start_longitude = models.FloatField(blank=True, null=True)
 
-    start_datetime_utc = models.DateTimeField(blank=True, null=True)
     start_timezone = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
-    def get_start_datetime_local(self):
-        """Returns the UTC datetime converted to its original time zone."""
-        return localtime(self.start_datetime_utc, pytz.timezone(self.start_timezone))
+    start_datetime_utc = models.DateTimeField(blank=True, null=True)
 
     elapsed_time = models.DurationField()  # Total time spent
     tracked_time = models.DurationField()  # Time actively tracked
@@ -321,3 +317,293 @@ class Illness(models.Model):
 
     def __str__(self):
         return f"{self.title} starting on {self.start_datetime}"
+    
+
+
+
+
+
+class ActivityViewModel:
+    def __init__(self, activity, activity_auto=None):
+        self._activity = activity
+        self._auto = activity_auto
+
+    @property
+    def pk(self):
+        return self._activity.pk
+
+    @property
+    def _meta(self):
+        return self._activity._meta
+
+    def __getattr__(self, name):
+        """Use Activity field if present, fallback to ActivityAuto."""
+        #
+        if hasattr(self.__class__, name):
+            attr = getattr(self.__class__, name)
+            if isinstance(attr, property):
+                return attr.__get__(self)  # call property getter explicitly
+            # If it's something else (method or class attr), raise error to let normal lookup handle it
+            raise AttributeError
+        
+        #
+        if hasattr(self._activity, name):
+            value = getattr(self._activity, name)
+            # If the value is a related field, return all related objects
+            if hasattr(value, 'all') and callable(value.all):
+                return value.all()
+            if value is not None and value != '':
+                return value
+        
+        #
+        if self._auto and hasattr(self._auto, name):
+            value = getattr(self._auto, name)
+            if hasattr(value, 'all') and callable(value.all):
+                return value.all()
+            return value
+        raise AttributeError(f"{name} not found in either Activity or ActivityAuto")
+
+    def __setattr__(self, name, value):
+        if name.startswith('_'):
+            super().__setattr__(name, value)
+        elif isinstance(getattr(self.__class__, name, None), property):
+            object.__setattr__(self, name, value)  # this will trigger @property.setter
+        elif hasattr(self._activity, name):
+            setattr(self._activity, name, value)
+        else:
+            raise AttributeError(f"Can't set unknown field {name}")
+
+    def save(self):
+        self._activity.save()
+
+
+    @property
+    def start_datetime_utc(self):
+        """Convert stored UTC start_datetime to the stored timezone."""
+        return getattr(self._activity, "start_datetime_utc", None) or getattr(self._auto, "start_datetime_utc", None) or None
+        
+
+    ## start_datetime
+    @property
+    def start_datetime(self):
+        """Convert stored UTC start_datetime to the stored timezone."""
+        # Get stored datetime and timezone
+        utc_dt = getattr(self._activity, "start_datetime_utc", None) or getattr(self._auto, "start_datetime_utc", None) or None
+        if not utc_dt:
+            return None  # or some default datetime if you want
+        
+        try:
+            tz_name = (
+                getattr(self._activity, "start_timezone", None)
+                or getattr(self._auto, "start_timezone", None)
+                or "UTC"
+            )
+            tz = pytz.timezone(tz_name)
+        except Exception:
+            tz = pytz.UTC
+            
+        # Convert from UTC to local timezone-aware datetime
+        local_dt = utc_dt.astimezone(tz)
+
+        # Return naive local time (for GUI use)
+        return local_dt.replace(tzinfo=None)
+    
+    @start_datetime.setter
+    def start_datetime(self, naive_local_dt):
+        """Takes a local datetime and stores it as UTC + sets timezone."""
+        try:
+            tz = pytz.timezone(self._activity.start_timezone)
+        except Exception:
+            tz = pytz.UTC
+
+        # Ensure it's naive
+        naive_local_dt = naive_local_dt.replace(tzinfo=None)
+
+        # Localize based on timezone (adds tzinfo while preserving clock time)
+        aware_local_dt = tz.localize(naive_local_dt, is_dst=None)
+
+        # Convert to UTC and store
+        self._activity.start_datetime_utc = aware_local_dt.astimezone(pytz.UTC)
+        print()
+
+
+
+        
+    # def _get_field(self, field_name):
+    #     value = getattr(self.activity, field_name, None)
+    #     if value is None:
+    #         return getattr(self._auto, field_name, None)
+    #     else:
+    #         return value
+        
+    # def _set_field(self, field_name, value):
+    #     setattr(self.activity, field_name, value)
+
+    # ## file
+    # @property
+    # def file(self):
+    #     return self._get_field('file')
+
+    # ## sport
+    # @property
+    # def sport(self):
+    #     return self._get_field('sport')
+    # @sport.setter
+    # def sport(self, value):
+    #     self._set_field('sport', value)
+
+    # @property
+    # def start_latitude(self):
+    #     return self._get_field('start_latitude')
+    
+    # @property
+    # def start_longitude(self):
+    #     return self._get_field('start_longitude')
+    
+    # ## start_timezone
+    # @property
+    # def start_timezone(self):
+    #     return self._get_field('start_timezone')
+    # @start_timezone.setter
+    # def start_timezone(self, value):
+    #     self._set_field('start_timezone', value)
+
+    # ## start_datetime_utc
+    # @property
+    # def start_datetime(self):
+    #     """Return localized datetime (aware) based on stored time zone"""
+    #     # Get database values: utc & timezone
+    #     start_datetime_utc = self._get_field('start_datetime_utc')
+    #     start_timezone = self._get_field('start_timezone')
+    #     # Apply timezone to utc time
+    #     if start_datetime_utc and start_timezone:
+    #         tz = pytz.timezone(start_timezone)
+    #         return start_datetime_utc.astimezone(tz)
+
+    # @start_datetime.setter
+    # def start_timezone(self, local_dt):
+    #     """
+    #     Set UTC datetime based on a timezone-aware or naive local datetime.
+    #     Assumes local_dt is in the timezone given by start_timezone.
+    #     """
+    #     # if timezone info present in other variable
+    #     if local_dt.tzinfo:
+    #         #  Get timezone and calculate UTC
+    #         tz = pytz.timezone(self.start_timezone)
+    #         local_dt = tz.localize(local_dt)
+        
+    #     # Store as UTC assuming it is now utc
+    #     self._set_field('start_datetime_utc', local_dt.astimezone(pytz.UTC))
+
+    # ## elapsed_time
+    # @property
+    # def elapsed_time(self):
+    #     return self._get_field('elapsed_time')
+    # @elapsed_time.setter
+    # def elapsed_time(self, value):
+    #     self._set_field('elapsed_time', value)
+
+    # ## tracked_time
+    # @property
+    # def tracked_time(self):
+    #     return self._get_field('tracked_time')
+    # @tracked_time.setter
+    # def tracked_time(self, value):
+    #     self._set_field('tracked_time', value)
+
+    # ## moving_time
+    # @property
+    # def moving_time(self):
+    #     return self._get_field('moving_time')
+    # @moving_time.setter
+    # def moving_time(self, value):
+    #     self._set_field('moving_time', value)
+
+    # ## distance
+    # @property
+    # def distance(self):
+    #     return self._get_field('distance')
+    # @distance.setter
+    # def distance(self, value):
+    #     self._set_field('distance', value)
+
+    # # elevation_gain
+    # @property
+    # def elevation_gain(self):
+    #     return self._get_field('elevation_gain')
+    # @elevation_gain.setter
+    # def elevation_gain(self, value):
+    #     self._set_field('elevation_gain', value)
+
+    # # elevation_loss
+    # @property
+    # def elevation_loss(self):
+    #     return self._get_field('elevation_loss')
+    # @elevation_loss.setter
+    # def elevation_loss(self, value):
+    #     self._set_field('elevation_loss', value)
+
+    # # elevation_max
+    # @property
+    # def elevation_max(self):
+    #     return self._get_field('elevation_max')
+    # @elevation_max.setter
+    # def elevation_max(self, value):
+    #     self._set_field('elevation_max', value)
+
+    # # elevation_min
+    # @property
+    # def elevation_min(self):
+    #     return self._get_field('elevation_min')
+    # @elevation_min.setter
+    # def elevation_min(self, value):
+    #     self._set_field('elevation_min', value)
+
+    # # time_at_HR
+    # @property
+    # def time_at_HR(self):
+    #     return self._get_field('time_at_HR')
+    # @time_at_HR.setter
+    # def time_at_HR(self, value):
+    #     self._set_field('time_at_HR', value)
+
+    # # time_at_pace
+    # @property
+    # def time_at_pace(self):
+    #     return self._get_field('time_at_pace')
+    # @time_at_pace.setter
+    # def time_at_pace(self, value):
+    #     self._set_field('time_at_pace', value)
+
+    # # best_sustained_pace
+    # @property
+    # def best_sustained_pace(self):
+    #     return self._get_field('best_sustained_pace')
+
+    # # device
+    # @property
+    # def device(self):
+    #     return self._get_field('device')
+    
+    # # weather
+    # @property
+    # def weather(self):
+    #     return self._get_field('weather')
+    # @weather.setter
+    # def weather(self, value):
+    #     self._set_field('weather', value)
+
+    # # calories
+    # @property
+    # def calories(self):
+    #     return self._get_field('calories')
+    # @calories.setter
+    # def calories(self, value):
+    #     self._set_field('calories', value)
+
+    
+
+
+    
+    
+  

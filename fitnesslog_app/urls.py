@@ -4,6 +4,8 @@ from django.views.generic import RedirectView
 
 urlpatterns = [
 
+    path('set-timezone/', views.set_timezone, name='set_timezone'),
+
     # Summary
     path('', views.summary, name='summary'),
     path('summary', RedirectView.as_view(pattern_name='summary', permanent=False)),

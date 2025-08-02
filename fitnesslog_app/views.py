@@ -3,7 +3,20 @@ from django.contrib import messages
 from datetime import timedelta, datetime, timezone
 from .models import *
 from .forms import *
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
 
+
+@csrf_exempt  # Or use CSRF token properly
+def set_timezone(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        tz = data.get("timezone")
+        if tz:
+            request.session['user_timezone'] = tz
+        return JsonResponse({"status": "ok"})
+    return JsonResponse({"error": "bad request"}, status=400)
 
 #######################################################################
 ### Summaries
@@ -147,20 +160,19 @@ def hrzones_delete(request, pk):
 
 
 def activity_list(request):
+    # Cleanup adding activity
     request.session.pop('activityAuto_id', None)
     ActivityAuto.objects.filter(activity__isnull=True).delete()
 
-    activity_list = Activity.objects.select_related('sport', 'auto')
-    for activity in activity_list:
-        activity.sport = activity.get_value('sport', '')
-        activity.activity_type = activity.get_value('activity_type', timedelta(0))
-        activity.start_datetime = activity.get_value('start_datetime', datetime(1, 1, 1, 0, 0))
-        activity.start_timezone = activity.get_value('start_timezone', 'UTC')
-        activity.moving_time = activity.get_value('moving_time', timedelta(0))
-        activity.distance = activity.get_value('distance', 0)
-        activity.elevation_gain = activity.get_value('elevation_gain', 0)
-        activity.calories = activity.get_value('calories', 0)
-    return render(request, 'activity_list.html', {'activity_list': activity_list})
+    activities = Activity.objects.all().select_related('activityauto')  # optional for performance
+    viewmodels = []
+
+    for activity in activities:
+        auto = getattr(activity, 'activityauto', None)  # avoids try/except
+        vm = ActivityViewModel(activity, auto)
+        viewmodels.append(vm)
+
+    return render(request, 'activity_list.html', {'viewmodels': viewmodels})
 
 def activity_add(request):
    
@@ -229,16 +241,17 @@ def activity_add(request):
 
 def activity_edit(request, pk):
     activity = get_object_or_404(Activity, pk=pk)
-    auto = activity.auto if hasattr(activity, 'auto') else None
+    auto = getattr(activity, 'activityauto', None)
+    vm = ActivityViewModel(activity, auto)
     
     if request.method == 'POST':
-        form = ActivityForm(request.POST, instance=activity, activity_auto=auto)
+        form = ActivityViewModelForm(request.POST, vm=vm)
         if form.is_valid():
             form.save()
             return redirect('activity_list')  # change as needed
     else:
-        form = ActivityForm(instance=activity, activity_auto=auto)
-    return render(request, 'activity_edit.html', {'form': form, 'activity': activity})
+        form = ActivityViewModelForm(vm=vm)
+    return render(request, 'activity_edit.html', {'form': form, 'vm':vm})
 
 def activity_delete(request, pk):
     activity = get_object_or_404(Activity, pk=pk)
