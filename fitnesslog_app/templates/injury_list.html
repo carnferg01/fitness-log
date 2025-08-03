@@ -20,8 +20,8 @@
                 <th>start_datetime</th>
                 <th>location</th>
                 <th>side</th>
-                <th>notes</th>
                 <th>severity</th>
+                <th>notes</th>
                 <th></th>
             </tr>
         </thead>
@@ -32,8 +32,8 @@
                 <td>{{ injury.start_datetime }}</td>
                 <td>{{ injury.location }}</td>
                 <td>{{ injury.side }}</td>
-                <td>{{ injury.notes }}</td>
                 <td>{{ injury.severity }}</td>
+                <td>{{ injury.notes }}</td>
                 <td>
                     <a href="{% url 'injury_edit' injury.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
                 </td>

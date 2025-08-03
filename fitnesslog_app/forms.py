@@ -186,9 +186,9 @@ class ActivityViewModelForm(forms.Form):
             'terrain',
             'start_datetime',
             'start_timezone',
-            'elapsed_time',
-            'tracked_time',
-            'moving_time',
+            'time_elapsed',
+            'time_tracked',
+            'time_moving',
             'distance',
             'elevation_gain',
             'elevation_loss',
@@ -209,6 +209,13 @@ class ActivityViewModelForm(forms.Form):
             required=True,
             widget=forms.DateTimeInput(format='%Y-%m-%d %H:%M:%S'),
             input_formats=['%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S'],  # add formats your app might receive
+        )
+
+        # Explicitly define gear field
+        self.fields['gear'] = forms.ModelMultipleChoiceField(
+            queryset=Gear.objects.filter(retired=False),
+            required=False,
+            widget=forms.SelectMultiple
         )
 
         # Sets initial values for the form fields from the view model, only when the form is unbound (i.e., not processing a POST request).
@@ -263,12 +270,13 @@ class ActivityViewModelForm(forms.Form):
 class InjuryForm(forms.ModelForm):
     class Meta:
         model = Injury
-        fields = ['title', 'start_datetime', 'location', 'side', 'notes', 'severity']
+        fields = ['title', 'start_datetime', 'location', 'side', 'severity', 'notes']
 
 class IllnessForm(forms.ModelForm):
     class Meta:
         model = Illness
-        fields = ['title', 'start_date', 'location', 'notes', 'severity']
+        fields = ['title', 'start_date', 'location', 'severity', 'notes']
+        ### TODO: include a date picker widget for start_date
 
 class MydayForm(forms.Form):
     date = forms.DateField(

@@ -47,10 +47,10 @@
                     {% endif %}
                 </td>
                 <td>
-                    {{ gear_item.calculated.first_used }}
+                    {{ gear_item.calculated.first_used|default:'' }}
                 </td>
                 <td>
-                    {{ gear_item.calculated.last_used }}
+                    {{ gear_item.calculated.last_used|default:'' }}
                 </td>
                 <td>
                     {{ gear_item.calculated.time_elapsed }}

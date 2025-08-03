@@ -2,6 +2,7 @@ from datetime import timedelta, timezone
 from time import localtime
 from django.db import models
 import pytz
+from django.db.models import Prefetch
 TIMEZONE_CHOICES = [(tz, tz) for tz in pytz.common_timezones]
 
 
@@ -33,9 +34,14 @@ class GearCalculated(models.Model):
         return f"{self.gear.nickname}: #{self.session_count} {self.distance}km  +{self.climb}m {self.first_used} - {self.last_used}"
 
     def recalculate_all_gear():
-        # TODO: This should be make efficent using Django ORM aggregations
-        for gear in Gear.objects.all():
-            activities = gear.activities.filter(gear=gear).select_related('auto')
+        # TODO: This should be made efficent using Django ORM aggregations
+
+        # Prefetch all activities and their related activityauto for all gears
+        activity_qs = Activity.objects.select_related('activityauto')
+        gears = Gear.objects.prefetch_related(
+            Prefetch('activities', queryset=activity_qs)
+        )
+        for gear in gears:
 
             total_elapsed_time = timedelta(0)
             total_distance = 0.0
@@ -44,20 +50,20 @@ class GearCalculated(models.Model):
             last_used = None
             count = 0
 
-            for activity in activities:
+            for activity in gear.activities.all():
+                vm = ActivityViewModel(activity, activity_auto=getattr(activity, 'activityauto', None))
                 # Use field from Activity if not None, otherwise fall back to Activity.auto
                 #auto = getattr(activity, 'auto', None)
 
                 # Choose distance
-                total_elapsed_time += activity.get_value('time_elapsed', timedelta(0))
-                total_distance += activity.get_value('distance', 0)
-                total_climb += activity.get_value('distance', 0)
-                start_time = activity.get_value('start_datetime', None)
-                if start_time:
-                    if first_used is None or start_time < first_used:
-                        first_used = start_time
-                    if last_used is None or start_time > last_used:
-                        last_used = start_time
+                total_elapsed_time += vm.time_elapsed or 0
+                total_distance += vm.distance or 0
+                total_climb += vm.distance or 0
+                if vm.start_datetime:
+                    if first_used is None or vm.start_datetime < first_used:
+                        first_used = vm.start_datetime
+                    if last_used is None or vm.start_datetime > last_used:
+                        last_used = vm.start_datetime
                 count += 1
 
             # Update or create GearCalculated
@@ -65,8 +71,8 @@ class GearCalculated(models.Model):
                 gear=gear,
                 defaults={
                     'time_elapsed': total_elapsed_time,
-                    'distance': total_distance,
-                    'climb': total_climb,
+                    'distance': round(total_distance, 1),
+                    'climb': round(total_climb, 1),
                     'session_count': count,
                     'first_used': first_used,
                     'last_used': last_used,
@@ -125,9 +131,9 @@ class Activity(models.Model):
     start_timezone = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
     start_datetime_utc = models.DateTimeField(blank=True, null=True)
     
-    elapsed_time = models.DurationField(blank=True, null=True)  # Total time spent
-    tracked_time = models.DurationField(blank=True, null=True)  # Time actively tracked
-    moving_time = models.DurationField(blank=True, null=True)  # Time spent moving
+    time_elapsed = models.DurationField(blank=True, null=True)  # Total time spent
+    time_tracked = models.DurationField(blank=True, null=True)  # Time actively tracked
+    time_moving = models.DurationField(blank=True, null=True)  # Time spent moving
 
     distance = models.FloatField(blank=True, null=True)  # km
     elevation_gain = models.FloatField(blank=True, null=True)  # m
@@ -162,9 +168,9 @@ class ActivityAuto(models.Model):
     start_timezone = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
     start_datetime_utc = models.DateTimeField(blank=True, null=True)
 
-    elapsed_time = models.DurationField()  # Total time spent
-    tracked_time = models.DurationField()  # Time actively tracked
-    moving_time = models.DurationField()  # Time spent moving
+    time_elapsed = models.DurationField()  # Total time spent
+    time_tracked = models.DurationField()  # Time actively tracked
+    time_moving = models.DurationField()  # Time spent moving
 
     distance = models.FloatField(blank=True, null=True)  # km
     elevation_gain = models.FloatField(blank=True, null=True)     # m
@@ -372,8 +378,9 @@ class ActivityViewModel:
                 return value.all()
             return value
         
-        # None of the Above
-        raise AttributeError(f"{name} not found in either Activity or ActivityAuto")
+        # None of the above
+        return None
+        #raise AttributeError(f"{name} not found in either Activity or ActivityAuto")
 
 
     def __setattr__(self, name, value):
