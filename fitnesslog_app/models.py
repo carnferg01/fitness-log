@@ -324,21 +324,31 @@ class Illness(models.Model):
 
 
 class ActivityViewModel:
+    """This ActivityViewModel class is a wrapper or proxy for two Django model instances: one 
+    called activity and another optional one called activity_auto. It provides a unified 
+    interface for accessing and modifying fields, falling back to activity_auto when a field 
+    isn't available or populated on activity.
+    """
     def __init__(self, activity, activity_auto=None):
         self._activity = activity
         self._auto = activity_auto
 
+
+    # Make pk accessable
     @property
     def pk(self):
         return self._activity.pk
 
+
+    # Expose Django's model metadata for introspection purposes (e.g., field names, model name).
     @property
     def _meta(self):
         return self._activity._meta
 
+
     def __getattr__(self, name):
-        """Use Activity field if present, fallback to ActivityAuto."""
-        #
+        """Dynamic Attribute Access"""
+        # Search: ActivityViewModel properties
         if hasattr(self.__class__, name):
             attr = getattr(self.__class__, name)
             if isinstance(attr, property):
@@ -346,7 +356,7 @@ class ActivityViewModel:
             # If it's something else (method or class attr), raise error to let normal lookup handle it
             raise AttributeError
         
-        #
+        # Search: _activity
         if hasattr(self._activity, name):
             value = getattr(self._activity, name)
             # If the value is a related field, return all related objects
@@ -355,21 +365,33 @@ class ActivityViewModel:
             if value is not None and value != '':
                 return value
         
-        #
+        # Search: activity_auto
         if self._auto and hasattr(self._auto, name):
             value = getattr(self._auto, name)
             if hasattr(value, 'all') and callable(value.all):
                 return value.all()
             return value
+        
+        # None of the Above
         raise AttributeError(f"{name} not found in either Activity or ActivityAuto")
 
+
     def __setattr__(self, name, value):
+        """Dynamic Attribute Setting"""
+
+        #Set on: properties like _xxxx on ActivityViewModel
         if name.startswith('_'):
             super().__setattr__(name, value)
+
+        # Set on: ActivityViewModel
         elif isinstance(getattr(self.__class__, name, None), property):
             object.__setattr__(self, name, value)  # this will trigger @property.setter
+        
+        # Set on: _activity
         elif hasattr(self._activity, name):
             setattr(self._activity, name, value)
+
+        # None of the Above
         else:
             raise AttributeError(f"Can't set unknown field {name}")
 

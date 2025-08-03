@@ -12,7 +12,25 @@
     </div>
 </div>
 
-<div style="overflow-x: auto; max-width: 100%; border: 1px solid #ddd;">
+<div style="overflow-x: auto; max-width: 100%; border: 1px solid #ddd;" class="mb-4">
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {{ form.non_field_errors|striptags }}
+        </div>
+    {% endif %}
+    
+    {% if form.errors %}
+        <div class="alert alert-danger">
+            Please correct the errors below.
+        </div>
+    {% endif %}
+    {% if messages %}
+        <div class="alert alert-info">
+            {% for message in messages %}
+                {{ message }}
+            {% endfor %}
+        </div>
+    {% endif %}
     <table class="table table-striped table-bordered mb-0">
         <thead class="table-light">
             <tr class="align-middle">
@@ -31,7 +49,7 @@
         <tbody>
         {% for vm in viewmodels %}
             <tr class="align-middle">
-                <td style="background-color: {{ vm.sport.colour }};"></td>
+                <td style="background-color: {{ vm.sport.colour }}; width: 1.5rem;"></td>
                 <td>{{ vm.sport.name }}</td>
                 <td>{{ vm.activity_type }}</td>
                 <td>{{ vm.start_datetime_utc|date:"Y-m-d H:i:s" }}</td>

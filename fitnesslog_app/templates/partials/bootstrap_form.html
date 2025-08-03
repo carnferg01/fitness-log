@@ -21,16 +21,50 @@
 
       <!-- Select -->
       {% elif field.field.widget.input_type == "select" %}
-        <select
+      <select
+        name="{{ field.name }}{% if field.field.widget.allow_multiple_selected %}[]{% endif %}"
+        class="form-select{% if field.errors %} is-invalid{% endif %}"
+        id="{{ field.id_for_label }}"
+        {% if field.field.widget.allow_multiple_selected %}multiple{% endif %}>
+        {% for option in field.field.choices %}
+          <option value="{{ option.0 }}" 
+            {% if field.field.widget.allow_multiple_selected %}
+              {% if option.0 in field.value %}
+                selected
+              {% endif %}
+            {% else %}
+              {% if option.0|stringformat:"s" == field.value|stringformat:"s" %}
+                selected
+              {% endif %}
+            {% endif %}>
+            {{ option.1 }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <!-- Checkbox-->
+      {% elif field.field.widget.input_type == "checkbox" %}
+      <div class="form-check form-switch">
+        <input
+          type="checkbox"
           name="{{ field.name }}"
-          class="form-select{% if field.errors %} is-invalid{% endif %}"
-          id="{{ field.id_for_label }}">
-          {% for option in field.field.choices %}
-            <option value="{{ option.0 }}" {% if option.0|stringformat:"s" == field.value|stringformat:"s" %}selected{% endif %}>
-              {{ option.1 }}
-            </option>
-          {% endfor %}
-        </select>
+          class="form-check-input{% if field.errors %} is-invalid{% endif %}"
+          id="{{ field.id_for_label }}"
+          {% if field.value %}checked{% endif %}>
+      </div>
+
+      <!-- Colour picker -->
+      {% elif field.field.widget.input_type == "color" %}
+      <div>
+        <input
+          type="color"
+          name="{{ field.name }}"
+          class="{% if field.errors %}is-invalid{% endif %}"
+          id="{{ field.id_for_label }}"
+          value="{{ field.value|default_if_none:'' }}"
+          placeholder="{{ placeholder|default:'' }}"
+          style="width: 4rem; height: 2rem;">
+      </div>
 
       <!-- Everyhting else -->
       {% else %}

@@ -248,7 +248,7 @@ def activity_edit(request, pk):
         form = ActivityViewModelForm(request.POST, vm=vm)
         if form.is_valid():
             form.save()
-            return redirect('activity_list')  # change as needed
+            return redirect('activity_list')
     else:
         form = ActivityViewModelForm(vm=vm)
     return render(request, 'activity_edit.html', {'form': form, 'vm':vm})

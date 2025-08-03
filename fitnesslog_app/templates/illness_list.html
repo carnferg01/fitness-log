@@ -19,8 +19,9 @@
                 <th>title</th>
                 <th>start_datetime</th>
                 <th>location</th>
-                <th>notes</th>
                 <th>severity</th>
+                <th>notes</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -29,8 +30,8 @@
                 <td>{{ illness.title }}</td>
                 <td>{{ illness.start_datetime }}</td>
                 <td>{{ illness.location }}</td>
-                <td>{{ illness.notes }}</td>
                 <td>{{ illness.severity }}</td>
+                <td>{{ illness.notes }}</td>
                 <td>
                     <a href="{% url 'illness_edit' illness.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
                 </td>
