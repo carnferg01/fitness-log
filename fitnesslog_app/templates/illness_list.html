@@ -17,7 +17,7 @@
         <thead class="table-light">
             <tr>
                 <th>title</th>
-                <th>start_datetime</th>
+                <th>start_date</th>
                 <th>location</th>
                 <th>severity</th>
                 <th>notes</th>
@@ -28,7 +28,7 @@
         {% for illness in illnesss %}
             <tr>
                 <td>{{ illness.title }}</td>
-                <td>{{ illness.start_datetime }}</td>
+                <td>{{ illness.start_date }}</td>
                 <td>{{ illness.location }}</td>
                 <td>{{ illness.severity }}</td>
                 <td>{{ illness.notes }}</td>

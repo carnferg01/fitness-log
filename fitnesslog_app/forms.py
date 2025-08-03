@@ -268,7 +268,7 @@ class InjuryForm(forms.ModelForm):
 class IllnessForm(forms.ModelForm):
     class Meta:
         model = Illness
-        fields = ['title', 'start_datetime', 'location', 'notes', 'severity']
+        fields = ['title', 'start_date', 'location', 'notes', 'severity']
 
 class MydayForm(forms.Form):
     date = forms.DateField(
