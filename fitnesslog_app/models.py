@@ -310,7 +310,7 @@ class Illness(models.Model):
     id = models.AutoField(primary_key=True)
     datetime_added = models.DateTimeField(auto_now_add=True)
     title = models.CharField(max_length=100)
-    start_datetime = models.DateTimeField()
+    start_datetime = models.DateField()
     location = models.CharField(max_length=100, blank=True)
     notes = models.TextField(blank=True)
     severity = models.TextField()  # e.g. 1222233253300003
