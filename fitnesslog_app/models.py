@@ -94,10 +94,10 @@ class Activity(models.Model):
     id = models.AutoField(primary_key=True)
     datetime_added = models.DateTimeField(auto_now_add=True)
 
-    sport_raw = models.ForeignKey(Sport, on_delete=models.CASCADE, related_name='activities', blank=True, null=True)
-    activity_type_raw = models.CharField(max_length=100, blank=True, null=True)
-    location_raw = models.TextField(blank=True, null=True)
-    intensity_raw = models.PositiveSmallIntegerField(choices=[
+    sport = models.ForeignKey(Sport, on_delete=models.CASCADE, related_name='activities', blank=True, null=True)
+    activity_type = models.CharField(max_length=100, blank=True, null=True)
+    location = models.TextField(blank=True, null=True)
+    intensity = models.PositiveSmallIntegerField(choices=[
         (1, 'Leisure'),
         (2, 'Very easy'),
         (3, 'Easy'),
@@ -109,7 +109,7 @@ class Activity(models.Model):
         (9, 'Very hard'),
         (10, 'Max'),
     ], blank=True, null=True)
-    feeling_raw = models.PositiveSmallIntegerField(choices=[
+    feeling = models.PositiveSmallIntegerField(choices=[
         (1, 'Terrible'),
         (2, 'Awful'),
         (3, 'Very bad'),
@@ -121,43 +121,43 @@ class Activity(models.Model):
         (9, 'Excellent'),
         (10, 'Euphoric'),
     ], blank=True, null=True)
-    terrain_raw = models.CharField(max_length=100, blank=True, null=True)
-    gear_raw = models.ManyToManyField(Gear, blank=True, related_name='activities')
-    note_raw = models.TextField(blank=True, null=True)
+    terrain = models.CharField(max_length=100, blank=True, null=True)
+    gear = models.ManyToManyField(Gear, blank=True, related_name='activities')
+    note = models.TextField(blank=True, null=True)
 
-    start_timezone_raw = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
-    start_datetime_utc_raw = models.DateTimeField(blank=True, null=True)
+    start_timezone = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
+    start_datetime_utc = models.DateTimeField(blank=True, null=True)
     
-    time_elapsed_raw = models.DurationField(blank=True, null=True)  # Total time spent
-    time_tracked_raw = models.DurationField(blank=True, null=True)  # Time actively tracked
-    time_moving_raw = models.DurationField(blank=True, null=True)  # Time spent moving
+    time_elapsed = models.DurationField(blank=True, null=True)  # Total time spent
+    time_tracked = models.DurationField(blank=True, null=True)  # Time actively tracked
+    time_moving = models.DurationField(blank=True, null=True)  # Time spent moving
 
-    distance_raw = models.FloatField(blank=True, null=True)  # km
-    elevation_gain_raw = models.FloatField(blank=True, null=True)  # m
-    elevation_loss_raw = models.FloatField(blank=True, null=True)  # m
-    elevation_max_raw = models.FloatField(blank=True, null=True)  # m
-    elevation_min_raw = models.FloatField(blank=True, null=True)  # m
+    distance = models.FloatField(blank=True, null=True)  # km
+    elevation_gain = models.FloatField(blank=True, null=True)  # m
+    elevation_loss = models.FloatField(blank=True, null=True)  # m
+    elevation_max = models.FloatField(blank=True, null=True)  # m
+    elevation_min = models.FloatField(blank=True, null=True)  # m
 
-    time_at_HR_raw = models.TextField(blank=True, null=True)  # JSON string of time at HR zones
-    time_at_pace_raw = models.TextField(blank=True, null=True)  # JSON string of time at HR/pace zones
+    time_at_HR = models.TextField(blank=True, null=True)  # JSON string of time at HR zones
+    time_at_pace = models.TextField(blank=True, null=True)  # JSON string of time at HR/pace zones
 
-    calories_raw = models.IntegerField(blank=True, null=True)  # Estimated calories burned
+    calories = models.IntegerField(blank=True, null=True)  # Estimated calories burned
 
 
     # TODO: check bellow datetime stuff
 
     @property
     def start_datetime_utc(self):
-        return self.start_datetime_utc_raw or getattr(self.auto, 'start_datetime_utc', None)
+        return self.start_datetime_utc or getattr(self.auto, 'start_datetime_utc', None)
 
     @property
     def start_timezone(self):
-        return self.start_timezone_raw or getattr(self.auto, 'start_timezone', 'UTC')
+        return self.start_timezone or getattr(self.auto, 'start_timezone', 'UTC')
 
     @property
     def start_datetime(self):
         """Return local naive time based on start_datetime_utc + timezone."""
-        utc_dt = self.start_datetime_utc_raw
+        utc_dt = self.start_datetime_utc
 
         try:
             tz = pytz.timezone(self.start_timezone)
@@ -178,7 +178,7 @@ class Activity(models.Model):
         naive_local_dt = naive_local_dt.replace(tzinfo=None)
         # Localize and convert to UTC
         local_dt = tz.localize(naive_local_dt, is_dst=None)
-        self.start_datetime_utc_raw = local_dt.astimezone(pytz.UTC)
+        self.start_datetime_utc = local_dt.astimezone(pytz.UTC)
 
     @property
     def auto_data(self):
@@ -189,32 +189,34 @@ class Activity(models.Model):
     def __getattr__(self, name):
         """
         Fallback field logic:
-        - First try: self.<name>_raw (manually set raw field on current model)
-        - Then try: self.auto.<name>
+        - First try: self.<name> (manually set raw field on current model)
+        - Then try: self.activityauto.<name>
         """
-        # Ignore special methods and private fields
         if name.startswith('__') or name.endswith('__') or name.startswith('_'):
             raise AttributeError(name)
 
-        # 1. Check for self.<name>_raw
-        raw_attr = f"{name}_raw"
+        # 1. Check for self.<name>
+        raw_attr = f"{name}"
         try:
             value = object.__getattribute__(self, raw_attr)
             if value is not None and value != '':
                 return value
         except AttributeError:
-            pass  # raw field doesn't exist
+            pass
 
-        # 2. Fallback to auto.<name>
-        auto = getattr(self, 'auto', None)
-        if auto and hasattr(auto, name):
-            return getattr(auto, name)
+        # 2. Fallback to activityauto.<name> using safe access
+        try:
+            auto = object.__getattribute__(self, 'activityauto')
+            if auto and hasattr(auto, name):
+                return getattr(auto, name)
+        except AttributeError:
+            pass
 
-        raise AttributeError(f"{name} not found in `{self.__class__.__name__}` or its `auto` fallback.")
+        raise AttributeError(f"{name} not found in `{self.__class__.__name__}` or its `activityauto` fallback.")
 
     def __setattr__(self, name, value):
         """
-        Redirect all writes to self.<name>_raw if it exists.
+        Redirect all writes to self.<name> if it exists.
         Only internal attributes and declared fields are writable.
         Prevent writing to auto or undeclared fields.
         """
@@ -225,7 +227,7 @@ class Activity(models.Model):
             return
 
         # Raw field name
-        raw_field = f"{name}_raw"
+        raw_field = f"{name}"
 
         # Get list of fields defined on the model
         field_names = [f.name for f in self._meta.get_fields()]
@@ -245,15 +247,15 @@ class Activity(models.Model):
 
 
 
-    def get_value(self, field_name, default):
-        value = getattr(self, field_name, None)
-        if value is not None:
-            return value
-        if hasattr(self, 'auto'):
-            auto_value = getattr(self.auto, field_name, None)
-            if auto_value is not None:
-                return auto_value
-        return default
+    # def get_value(self, field_name, default):
+    #     value = getattr(self, field_name, None)
+    #     if value is not None:
+    #         return value
+    #     if hasattr(self, 'auto'):
+    #         auto_value = getattr(self.auto, field_name, None)
+    #         if auto_value is not None:
+    #             return auto_value
+    #     return default
 
 
 class ActivityAuto(models.Model):

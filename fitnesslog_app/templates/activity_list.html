@@ -47,19 +47,19 @@
             </tr>
         </thead>
         <tbody>
-        {% for vm in viewmodels %}
+        {% for a in activities %}
             <tr class="align-middle">
-                <td style="background-color: {{ vm.sport.colour }}; width: 1.5rem;"></td>
-                <td>{{ vm.sport.name }}</td>
-                <td>{{ vm.activity_type }}</td>
-                <td>{{ vm.start_datetime_utc|date:"Y-m-d H:i:s" }}</td>
-                <td>{{ vm.start_timezone }}</td>
-                <td>{{ vm.time_moving }}</td>
-                <td>{{ vm.distance }}</td>
-                <td>{{ vm.elevation_gain }}</td>
-                <td>{{ vm.calories }}</td>
+                <td style="background-color: {{ a.sport.colour }}; width: 1.5rem;"></td>
+                <td>{{ a.sport.name }}</td>
+                <td>{{ a.activity_type_raw }}</td>
+                <td>{{ a.start_datetime_utc|date:"Y-m-d H:i:s" }}</td>
+                <td>{{ a.start_timezone }}</td>
+                <td>{{ a.time_moving_raw }}</td>
+                <td>{{ a.distance_raw }}</td>
+                <td>{{ a.elevation_gain_raw }}</td>
+                <td>{{ a.calories_raw }}</td>
                 <td>
-                    <a href="{% url 'activity_edit' vm.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    <a href="{% url 'activity_edit' a.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
                 </td>
             </tr>
         {% empty %}

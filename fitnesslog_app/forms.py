@@ -3,7 +3,7 @@ from django import forms
 import pytz
 from .models import Gear, Sport, HRzones, Activity, Injury, Illness
 from django.utils.safestring import mark_safe
-from django.forms import ChoiceField
+from django.forms import ChoiceField, ValidationError
 from django.forms.models import fields_for_model
 
 class GearForm(forms.ModelForm):
@@ -166,43 +166,25 @@ class HRzonesForm(forms.ModelForm):
 #             'gear'
 #         ]
 
+class ActivityForm(forms.ModelForm):
+    required_fields = [
+        'sport',
+        #'start_datetime',
+        #'start_timezone',
+        'time_elapsed',
+    ]
 
+    class Meta:
+        model = Activity
+        fields = '__all__'
 
-class ActivityViewModelForm(forms.Form):
-    """This ActivityViewModelForm is a custom Django Form that wraps around 
-    an ActivityViewModel instance, allowing you to edit it via a form 
-    interface"""
-    def __init__(self, *args, vm=None, **kwargs):
+    def __init__(self, *args, activity=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.vm = vm
-
-        # A hardcoded list of fields that the form should expose.
-        field_names = [
-            'sport',
-            'activity_type',
-            'location',
-            'intensity',
-            'feeling',
-            'terrain',
-            'start_datetime',
-            'start_timezone',
-            'time_elapsed',
-            'time_tracked',
-            'time_moving',
-            'distance',
-            'elevation_gain',
-            'elevation_loss',
-            'elevation_max',
-            'elevation_min',
-            'time_at_HR',
-            'time_at_pace',
-            'calories',
-            'gear',
-        ]
+        self.activity = activity
 
         # This uses Django's fields_for_model() helper to generate form fields for the listed fields on the Activity model.
         #activity = vm._activity if vm and vm._activity else Activity()
-        self.fields.update(fields_for_model(Activity, fields=field_names))
+        #self.fields.update(fields_for_model(Activity, fields=field_names))
 
         # Add virtual form field(s) manually
         self.fields['start_datetime'] = forms.DateTimeField(
@@ -219,53 +201,177 @@ class ActivityViewModelForm(forms.Form):
             widget=forms.SelectMultiple
         )
 
-        # Sets initial values for the form fields from the view model, only when the form is unbound (i.e., not processing a POST request).
-        if vm and not self.is_bound:
-            for name in self.fields:
-                val = getattr(vm, name, None)
+        self._inject_fallback_field_cleaners()
 
-                #
-                if hasattr(val, 'all') and callable(val.all):
-                    val = list(val.all())
+        # When not processing a POST request (is unbound), set initial values for the form fields from the view model.
+        # if activity and not self.is_bound:
+        #     for name in self.fields:
+        #         val = getattr(activity, name, None)
 
-                # Convert datetime to string format the widget expects
-                if name == 'start_datetime' and val:
-                    val = val.strftime('%Y-%m-%d %H:%M:%S') if val else None
+        #         #
+        #         if hasattr(val, 'all') and callable(val.all):
+        #             val = list(val.all())
+
+        #         # Convert datetime to string format the widget expects
+        #         if name == 'start_datetime' and val:
+        #             val = val.strftime('%Y-%m-%d %H:%M:%S') if val else None
                 
-                #
-                if val is None or val == '':
-                    fallback = getattr(vm._auto, name, None) if vm._auto else None
-                    if hasattr(fallback, 'all') and callable(fallback.all):
-                        fallback = list(fallback.all())
-                    val = fallback
+        #         #
+        #         if val is None or val == '':
+        #             fallback = getattr(activity.activityauto, name, None) if activity.activityauto else None
+        #             if hasattr(fallback, 'all') and callable(fallback.all):
+        #                 fallback = list(fallback.all())
+        #             val = fallback
                     
-                self.initial[name] = val
+        #         self.initial[name] = val
 
-    # def clean_distance(self):
-    #     val = self.cleaned_data.get('distance')
-    #     auto_val = getattr(self.vm._auto, 'distance', None)
-    #     if auto_val and val and val < 0.5 * auto_val:
-    #         raise forms.ValidationError("Distance is unusually low compared to auto estimate.")
-    #     return val
+    def _inject_fallback_field_cleaners(self):
+        """
+        For each required field (e.g. 'sport'), dynamically attach a clean_<raw_field>()
+        that validates whether the computed fallback property has a value.
+        """
+        for logical_field in self.required_fields:
+            raw_field = f"{logical_field}_raw"
+            if raw_field in self.fields:
+                setattr(
+                    self,
+                    f'clean_{raw_field}',
+                    self._make_fallback_cleaner(logical_field, raw_field)
+                )
+
+    def _make_fallback_cleaner(self, logical_field, raw_field):
+        """
+        Create a per-field clean method that validates whether the logical field
+        (which uses fallback resolution) has a value.
+        """
+        def cleaner():
+            value = getattr(self.instance, logical_field, None)
+            if value in (None, '', [], {}):
+                raise ValidationError(
+                    f"{logical_field.replace('_', ' ').capitalize()} must be set either in this activity or in fallback data."
+                )
+            return self.cleaned_data.get(raw_field)
+        return cleaner
 
     def save(self):
         ### TODO: Make the following more efficent
         # Set start_timezone before start_datetime
         if 'start_timezone' in self.cleaned_data:
-            setattr(self.vm, 'start_timezone', self.cleaned_data['start_timezone'])
+            setattr(self.activity, 'start_timezone', self.cleaned_data['start_timezone'])
         if 'start_datetime' in self.cleaned_data:
-            setattr(self.vm, 'start_datetime', self.cleaned_data['start_datetime'])
+            setattr(self.activity, 'start_datetime', self.cleaned_data['start_datetime'])
     
         for name in self.fields:
             value = self.cleaned_data[name]
             # Special handling for ManyToMany
             if name == 'gear':
-                if hasattr(self.vm._activity.gear, 'set'):
-                    self.vm._activity.gear.set(value)
+                if hasattr(self.activity._activity.gear, 'set'):
+                    self.activity._activity.gear.set(value)
             else:
-                setattr(self.vm, name, value)
-        self.vm.save()
-        return self.vm
+                setattr(self.activity, name, value)
+        self.activity.save()
+        return self.activity
+
+
+
+# class ActivityViewModelForm(forms.Form):
+#     """This ActivityViewModelForm is a custom Django Form that wraps around 
+#     an ActivityViewModel instance, allowing you to edit it via a form 
+#     interface"""
+#     def __init__(self, *args, vm=None, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.vm = vm
+
+#         # A hardcoded list of fields that the form should expose.
+#         field_names = [
+#             'sport',
+#             'activity_type',
+#             'location',
+#             'intensity',
+#             'feeling',
+#             'terrain',
+#             'start_datetime',
+#             'start_timezone',
+#             'time_elapsed',
+#             'time_tracked',
+#             'time_moving',
+#             'distance',
+#             'elevation_gain',
+#             'elevation_loss',
+#             'elevation_max',
+#             'elevation_min',
+#             'time_at_HR',
+#             'time_at_pace',
+#             'calories',
+#             'gear',
+#         ]
+
+#         # This uses Django's fields_for_model() helper to generate form fields for the listed fields on the Activity model.
+#         #activity = vm._activity if vm and vm._activity else Activity()
+#         self.fields.update(fields_for_model(Activity, fields=field_names))
+
+#         # Add virtual form field(s) manually
+#         self.fields['start_datetime'] = forms.DateTimeField(
+#             label='Start Time (local to run)',
+#             required=True,
+#             widget=forms.DateTimeInput(format='%Y-%m-%d %H:%M:%S'),
+#             input_formats=['%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S'],  # add formats your app might receive
+#         )
+
+#         # Explicitly define gear field
+#         self.fields['gear'] = forms.ModelMultipleChoiceField(
+#             queryset=Gear.objects.filter(retired=False),
+#             required=False,
+#             widget=forms.SelectMultiple
+#         )
+
+#         # Sets initial values for the form fields from the view model, only when the form is unbound (i.e., not processing a POST request).
+#         if vm and not self.is_bound:
+#             for name in self.fields:
+#                 val = getattr(vm, name, None)
+
+#                 #
+#                 if hasattr(val, 'all') and callable(val.all):
+#                     val = list(val.all())
+
+#                 # Convert datetime to string format the widget expects
+#                 if name == 'start_datetime' and val:
+#                     val = val.strftime('%Y-%m-%d %H:%M:%S') if val else None
+                
+#                 #
+#                 if val is None or val == '':
+#                     fallback = getattr(vm._auto, name, None) if vm._auto else None
+#                     if hasattr(fallback, 'all') and callable(fallback.all):
+#                         fallback = list(fallback.all())
+#                     val = fallback
+                    
+#                 self.initial[name] = val
+
+#     # def clean_distance(self):
+#     #     val = self.cleaned_data.get('distance')
+#     #     auto_val = getattr(self.vm._auto, 'distance', None)
+#     #     if auto_val and val and val < 0.5 * auto_val:
+#     #         raise forms.ValidationError("Distance is unusually low compared to auto estimate.")
+#     #     return val
+
+#     def save(self):
+#         ### TODO: Make the following more efficent
+#         # Set start_timezone before start_datetime
+#         if 'start_timezone' in self.cleaned_data:
+#             setattr(self.vm, 'start_timezone', self.cleaned_data['start_timezone'])
+#         if 'start_datetime' in self.cleaned_data:
+#             setattr(self.vm, 'start_datetime', self.cleaned_data['start_datetime'])
+    
+#         for name in self.fields:
+#             value = self.cleaned_data[name]
+#             # Special handling for ManyToMany
+#             if name == 'gear':
+#                 if hasattr(self.vm._activity.gear, 'set'):
+#                     self.vm._activity.gear.set(value)
+#             else:
+#                 setattr(self.vm, name, value)
+#         self.vm.save()
+#         return self.vm
 
 
 class InjuryForm(forms.ModelForm):

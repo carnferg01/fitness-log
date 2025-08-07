@@ -211,15 +211,9 @@ def activity_list(request):
     request.session.pop('activityAuto_id', None)
     ActivityAuto.objects.filter(activity__isnull=True).delete()
 
-    activities = Activity.objects.all().select_related('activityauto')  # optional for performance
-    viewmodels = []
-
-    for activity in activities:
-        auto = getattr(activity, 'activityauto', None)  # avoids try/except
-        vm = ActivityViewModel(activity, auto)
-        viewmodels.append(vm)
-
-    return render(request, 'activity_list.html', {'viewmodels': viewmodels})
+    #
+    activities = Activity.objects.all().select_related('activityauto')
+    return render(request, 'activity_list.html', {'activities': activities})
 
 def activity_add(request):
    
@@ -302,18 +296,18 @@ def activity_add(request):
 
 
 def activity_edit(request, pk):
-    activity = get_object_or_404(Activity, pk=pk)
-    auto = getattr(activity, 'activityauto', None)
-    vm = ActivityViewModel(activity, auto)
-    
+    activity = get_object_or_404(Activity.objects.select_related('activityauto'), pk=pk)
+
     if request.method == 'POST':
-        form = ActivityViewModelForm(request.POST, vm=vm)
+        form = ActivityForm(request.POST, activity=activity)
         if form.is_valid():
             form.save()
             return redirect('activity_list')
     else:
-        form = ActivityViewModelForm(vm=vm)
-    return render(request, 'activity_edit.html', {'form': form, 'vm':vm})
+        form = ActivityForm(activity=activity)
+
+    return render(request, 'activity_edit.html', {'form': form, 'activity': activity})
+
 
 def activity_delete(request, pk):
     activity = get_object_or_404(Activity, pk=pk)
