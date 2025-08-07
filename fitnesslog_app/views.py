@@ -30,8 +30,13 @@ def summary_myday(request):
     if request.method == 'POST':
         form = MydayForm(request.POST)
         if form.is_valid():
+            # Get date
             selected_date = form.cleaned_data['date']
+
+            # Get day totals
             day_stats = get_object_or_404(ActivityDayCalculated, date=selected_date)
+            
+            # Get day activities
             try:
                 # Parse the date from the request
                 target_date = datetime.strptime(selected_date, "%Y-%m-%d").date()
@@ -44,17 +49,12 @@ def summary_myday(request):
                 day_activities = ActivityViewModel.objects.filter(timestamp__gte=start_dt, timestamp__lt=end_dt)
 
             except (ValueError, TypeError):
-                return HttpResponseBadRequest("Invalid or missing date.")
+                day_activities = []
 
-
-            data = {
-                'message': f"Data for {selected_date}",
-                'extra': f"More content for {selected_date}",
-            }
     else:
         form = MydayForm()  # empty form on first load
 
-    return render(request, 'summary_myday.html', {'form': form, 'data': data})
+    return render(request, 'summary_myday.html', {'selected_date': selected_date, 'day_stats': day_stats, 'day_activities':day_activities})
 
 
 #######################################################################
