@@ -36,3 +36,13 @@ def contrast_text(hex_color):
 @register.filter
 def get_item(dictionary, key):
     return dictionary.get(key, '')
+
+
+@register.filter
+def activity_placeholder(vm, field_name):
+    """Try to get a value from vm._activity to use as placeholder."""
+    try:
+        val = getattr(vm._activity, field_name)
+        return val if val not in [None, ''] else ''
+    except AttributeError:
+        return ''

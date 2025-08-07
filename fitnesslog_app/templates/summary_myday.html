@@ -9,6 +9,15 @@
     .form-group { margin-bottom: 1em; }
 </style>
 
+/<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>All Activities</h1>
+    <div>
+        <a href="{% url 'activity_add' %}" class="btn btn-primary">Add Activity</a>
+    </div>
+</div>
+
+<!-- Date selector -->
 <form id="date-form" method="post">
     {% csrf_token %}
     <div class="form-group">
@@ -16,6 +25,12 @@
         {{ form.date }}
     </div>
 </form>
+
+<!-- Totals -->
+
+
+<!-- Activities -->
+
 
 {% if data %}
     <h2>Results:</h2>

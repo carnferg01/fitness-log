@@ -1,4 +1,7 @@
 {# templates/partials/bootstrap_form.html #}
+
+{% load custom_filters %}
+
 {% if form.non_field_errors %}
   <div class="alert alert-danger">
     {{ form.non_field_errors|striptags }}
@@ -8,7 +11,7 @@
 {% for field in form %}
   <div class="mb-3">
     <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-    {% with field.field.widget.attrs.placeholder as placeholder %}
+    {% with vm|activity_placeholder:field.name as placeholder %}
 
       <!-- Textarea -->
       {% if field.field.widget.input_type == "textarea" %}
@@ -75,6 +78,12 @@
           id="{{ field.id_for_label }}"
           value="{{ field.value|default_if_none:'' }}"
           placeholder="{{ placeholder|default:'' }}">
+      {% endif %}
+
+
+      <!-- Display small under-text using placeholder -->
+      {% if placeholder %}
+        <small class="form-text text-muted">{{ placeholder }}</small>
       {% endif %}
     {% endwith %}
 

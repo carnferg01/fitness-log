@@ -125,9 +125,6 @@ class Activity(models.Model):
     gear = models.ManyToManyField(Gear, blank=True, related_name='activities')
     note = models.TextField(blank=True, null=True)
 
-    # user = users current timezone
-    #  = activity timezone
-
     start_timezone = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
     start_datetime_utc = models.DateTimeField(blank=True, null=True)
     
@@ -335,7 +332,7 @@ class ActivityViewModel:
     interface for accessing and modifying fields, falling back to activity_auto when a field 
     isn't available or populated on activity.
     """
-    def __init__(self, activity, activity_auto=None):
+    def __init__(self, activity=None, activity_auto=None):
         self._activity = activity
         self._auto = activity_auto
 

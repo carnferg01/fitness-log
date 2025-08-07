@@ -201,7 +201,8 @@ class ActivityViewModelForm(forms.Form):
         ]
 
         # This uses Django's fields_for_model() helper to generate form fields for the listed fields on the Activity model.
-        self.fields.update(fields_for_model(vm._activity, fields=field_names))
+        #activity = vm._activity if vm and vm._activity else Activity()
+        self.fields.update(fields_for_model(Activity, fields=field_names))
 
         # Add virtual form field(s) manually
         self.fields['start_datetime'] = forms.DateTimeField(

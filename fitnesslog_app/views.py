@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from datetime import timedelta, datetime, timezone
+from datetime import timedelta, datetime, timezone, time, timedelta
 from .models import *
 from .forms import *
 from django.views.decorators.csrf import csrf_exempt
@@ -31,6 +31,22 @@ def summary_myday(request):
         form = MydayForm(request.POST)
         if form.is_valid():
             selected_date = form.cleaned_data['date']
+            day_stats = get_object_or_404(ActivityDayCalculated, date=selected_date)
+            try:
+                # Parse the date from the request
+                target_date = datetime.strptime(selected_date, "%Y-%m-%d").date()
+
+                # Define start and end of the day in UTC
+                start_dt = datetime.combine(target_date, time.min).replace(tzinfo=utc)
+                end_dt = datetime.combine(target_date + timedelta(days=1), time.min).replace(tzinfo=utc)
+
+                # Query objects where timestamp is on that date in UTC
+                day_activities = ActivityViewModel.objects.filter(timestamp__gte=start_dt, timestamp__lt=end_dt)
+
+            except (ValueError, TypeError):
+                return HttpResponseBadRequest("Invalid or missing date.")
+
+
             data = {
                 'message': f"Data for {selected_date}",
                 'extra': f"More content for {selected_date}",
@@ -177,15 +193,12 @@ def activity_list(request):
 def activity_add(request):
    
     auto = None
+    vm = None
     
     if request.method == 'POST':
         if 'upload_button' in request.POST:
-            # Button A clicked
             uploaded_file = request.FILES.get('activity_file')
-            if uploaded_file:
-                # Example: read and parse file data here
-                # For simplicity, assume it's a CSV with 'name,age'
-                
+            if uploaded_file:                
                 parsed_data = parse_file(uploaded_file)
                 auto = ActivityAuto(**parsed_data)
                 auto.save()
@@ -214,28 +227,46 @@ def activity_add(request):
             
 
         elif 'submit_button' in request.POST:
-            auto_id = request.session.get('activityAuto_id', None)
+            auto_id = request.session.get('activityAuto_id')
             auto = ActivityAuto.objects.filter(id=auto_id).first() if auto_id else None
 
-            form = ActivityForm(request.POST, activity_auto=auto)
+            # Always pass a new Activity instance
+            activity = Activity()
+            vm = ActivityViewModel(activity, activity_auto=auto)
 
+            form = ActivityViewModelForm(request.POST, vm=vm)
             if form.is_valid():
                 request.session.pop('activityAuto_id', None)
-                activity_instance = form.save()
+                form.save()
+
                 if auto:
-                    auto.activity = activity_instance
+                    auto.activity = vm._activity
                     auto.save()
+
                 return redirect('activity_list')
-            else:
+            #else:
                 # Form has errors, return it with POST data and auto
-                return render(request, 'activity_add.html', {'form': form})
+                #return render(request, 'activity_add.html', {'form': form})
 
+    # GET request
+    else:
+        auto_id = request.session.get('activityAuto_id')
+        auto = ActivityAuto.objects.filter(id=auto_id).first() if auto_id else None
 
-    # GET request (including after redirect)
-    auto_id = request.session.get('activityAuto_id', None)
-    auto = ActivityAuto.objects.filter(id=auto_id).first()
-    form = ActivityForm(request.POST, activity_auto=auto)
-    return render(request, 'activity_add.html', {'form': form})
+        if auto:
+        #activity = Activity()
+            vm = ActivityViewModel(None, activity_auto=auto)
+            form = ActivityViewModelForm(vm=vm)
+        else:
+            form = ActivityViewModelForm()
+
+    return render(request, 'activity_add.html', {'form': form, 'vm': vm})
+
+    # # GET request (including after redirect)
+    # auto_id = request.session.get('activityAuto_id', None)
+    # auto = ActivityAuto.objects.filter(id=auto_id).first()
+    # form = ActivityViewModelForm(request.POST, activity_auto=auto)
+    # return render(request, 'activity_add.html', {'form': form})
 
 
 
@@ -297,11 +328,11 @@ def parse_file(file):
         'file': None,  # FileField expects a file object or file path when saving
         'start_latitude': 51.5074,
         'start_longitude': -0.1278,
-        'start_datetime': datetime(year=2025, month=7, day=10, hour=7, minute=30, second=0, tzinfo=timezone.utc),  # ISO 8601 string or a datetime object
+        'start_datetime_utc': datetime(year=2025, month=7, day=10, hour=7, minute=30, second=0, tzinfo=timezone.utc),  # ISO 8601 string or a datetime object
         'start_timezone': 'UTC',
-        'elapsed_time': timedelta(hours=1,minutes=30),  # timedelta or string 'HH:MM:SS'
-        'tracked_time': timedelta(hours=1,minutes=20),
-        'moving_time': timedelta(hours=1,minutes=15),
+        'time_elapsed': timedelta(hours=1,minutes=30),  # timedelta or string 'HH:MM:SS'
+        'time_tracked': timedelta(hours=1,minutes=20),
+        'time_moving': timedelta(hours=1,minutes=15),
         'distance': 15.2,
         'elevation_gain': 250.5,
         'elevation_loss': 240.3,
