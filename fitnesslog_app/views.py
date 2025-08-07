@@ -42,8 +42,8 @@ def summary_myday(request):
                 target_date = datetime.strptime(selected_date, "%Y-%m-%d").date()
 
                 # Define start and end of the day in UTC
-                start_dt = datetime.combine(target_date, time.min).replace(tzinfo=utc)
-                end_dt = datetime.combine(target_date + timedelta(days=1), time.min).replace(tzinfo=utc)
+                start_dt = datetime.combine(target_date, time.min).replace(tzinfo=timezone.utc)
+                end_dt = datetime.combine(target_date + timedelta(days=1), time.min).replace(tzinfo=timezone.utc)
 
                 # Query objects where timestamp is on that date in UTC
                 day_activities = ActivityViewModel.objects.filter(timestamp__gte=start_dt, timestamp__lt=end_dt)
@@ -51,10 +51,33 @@ def summary_myday(request):
             except (ValueError, TypeError):
                 day_activities = []
 
+
+            # Identify large breaks in day_activities and calculate time gaps
+            enhanced_day_activities = []
+            prev_end_time = None
+            for activity in day_activities:
+                start = activity.start_datetime
+                end = start + activity.time_elapsed
+
+                gap_hours = None
+                if prev_end_time:
+                    diff = start - prev_end_time
+                    if diff > timedelta(hours=1):
+                        # Round to nearest full hour
+                        rounded_hours = round(diff.total_seconds() / 3600)
+                        gap_hours = rounded_hours
+
+                enhanced_day_activities.append({
+                    'activity': activity,
+                    'gap_hours': gap_hours,  # None if no separator needed
+                })
+
+                prev_end_time = end
+
     else:
         form = MydayForm()  # empty form on first load
 
-    return render(request, 'summary_myday.html', {'selected_date': selected_date, 'day_stats': day_stats, 'day_activities':day_activities})
+    return render(request, 'summary_myday.html', {'selected_date': selected_date, 'day_stats': day_stats, 'enhanced_day_activities':enhanced_day_activities})
 
 
 #######################################################################
