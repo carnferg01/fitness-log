@@ -6,6 +6,7 @@ from .forms import *
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 import json
+from django.db.models import Q
 
 
 @csrf_exempt  # Or use CSRF token properly
@@ -25,31 +26,38 @@ def summary(request):
     return render(request, 'summary.html')
 
 def summary_myday(request):
-    data = None
+    selected_date = datetime.now().date()  # Default to today
+    day_stats = None
+    day_activities = []
+    enhanced_day_activities = []
 
     if request.method == 'POST':
         form = MydayForm(request.POST)
         if form.is_valid():
             # Get date
-            selected_date = form.cleaned_data['date']
+            selected_date = form.cleaned_data.get('date')
 
             # Get day totals
-            day_stats = get_object_or_404(ActivityDayCalculated, date=selected_date)
+            try:
+                day_stats = ActivityDayCalculated.objects.get(date=selected_date)
+            except ActivityDayCalculated.DoesNotExist:
+                pass
+
             
             # Get day activities
             try:
                 # Parse the date from the request
-                target_date = datetime.strptime(selected_date, "%Y-%m-%d").date()
 
                 # Define start and end of the day in UTC
-                start_dt = datetime.combine(target_date, time.min).replace(tzinfo=timezone.utc)
-                end_dt = datetime.combine(target_date + timedelta(days=1), time.min).replace(tzinfo=timezone.utc)
+                start_dt = datetime.combine(selected_date, time.min).replace(tzinfo=timezone.utc)
+                end_dt = datetime.combine(selected_date + timedelta(days=1), time.min).replace(tzinfo=timezone.utc)
 
                 # Query objects where timestamp is on that date in UTC
+                
                 day_activities = ActivityViewModel.objects.filter(timestamp__gte=start_dt, timestamp__lt=end_dt)
 
             except (ValueError, TypeError):
-                day_activities = []
+                pass
 
 
             # Identify large breaks in day_activities and calculate time gaps
@@ -77,7 +85,7 @@ def summary_myday(request):
     else:
         form = MydayForm()  # empty form on first load
 
-    return render(request, 'summary_myday.html', {'selected_date': selected_date, 'day_stats': day_stats, 'enhanced_day_activities':enhanced_day_activities})
+    return render(request, 'summary_myday.html', {'form':form, 'selected_date': selected_date, 'day_stats': day_stats, 'enhanced_day_activities': enhanced_day_activities})
 
 
 #######################################################################

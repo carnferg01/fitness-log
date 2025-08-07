@@ -94,10 +94,10 @@ class Activity(models.Model):
     id = models.AutoField(primary_key=True)
     datetime_added = models.DateTimeField(auto_now_add=True)
 
-    sport = models.ForeignKey(Sport, on_delete=models.CASCADE, related_name='activities', blank=True, null=True)
-    activity_type = models.CharField(max_length=100, blank=True, null=True)
-    location = models.TextField(blank=True, null=True)
-    intensity = models.PositiveSmallIntegerField(choices=[
+    sport_raw = models.ForeignKey(Sport, on_delete=models.CASCADE, related_name='activities', blank=True, null=True)
+    activity_type_raw = models.CharField(max_length=100, blank=True, null=True)
+    location_raw = models.TextField(blank=True, null=True)
+    intensity_raw = models.PositiveSmallIntegerField(choices=[
         (1, 'Leisure'),
         (2, 'Very easy'),
         (3, 'Easy'),
@@ -109,7 +109,7 @@ class Activity(models.Model):
         (9, 'Very hard'),
         (10, 'Max'),
     ], blank=True, null=True)
-    feeling = models.PositiveSmallIntegerField(choices=[
+    feeling_raw = models.PositiveSmallIntegerField(choices=[
         (1, 'Terrible'),
         (2, 'Awful'),
         (3, 'Very bad'),
@@ -121,27 +121,129 @@ class Activity(models.Model):
         (9, 'Excellent'),
         (10, 'Euphoric'),
     ], blank=True, null=True)
-    terrain = models.CharField(max_length=100, blank=True, null=True)
-    gear = models.ManyToManyField(Gear, blank=True, related_name='activities')
-    note = models.TextField(blank=True, null=True)
+    terrain_raw = models.CharField(max_length=100, blank=True, null=True)
+    gear_raw = models.ManyToManyField(Gear, blank=True, related_name='activities')
+    note_raw = models.TextField(blank=True, null=True)
 
-    start_timezone = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
-    start_datetime_utc = models.DateTimeField(blank=True, null=True)
+    start_timezone_raw = models.CharField(max_length=64, blank=True, null=True, choices=[(tz, tz) for tz in pytz.common_timezones])
+    start_datetime_utc_raw = models.DateTimeField(blank=True, null=True)
     
-    time_elapsed = models.DurationField(blank=True, null=True)  # Total time spent
-    time_tracked = models.DurationField(blank=True, null=True)  # Time actively tracked
-    time_moving = models.DurationField(blank=True, null=True)  # Time spent moving
+    time_elapsed_raw = models.DurationField(blank=True, null=True)  # Total time spent
+    time_tracked_raw = models.DurationField(blank=True, null=True)  # Time actively tracked
+    time_moving_raw = models.DurationField(blank=True, null=True)  # Time spent moving
 
-    distance = models.FloatField(blank=True, null=True)  # km
-    elevation_gain = models.FloatField(blank=True, null=True)  # m
-    elevation_loss = models.FloatField(blank=True, null=True)  # m
-    elevation_max = models.FloatField(blank=True, null=True)  # m
-    elevation_min = models.FloatField(blank=True, null=True)  # m
+    distance_raw = models.FloatField(blank=True, null=True)  # km
+    elevation_gain_raw = models.FloatField(blank=True, null=True)  # m
+    elevation_loss_raw = models.FloatField(blank=True, null=True)  # m
+    elevation_max_raw = models.FloatField(blank=True, null=True)  # m
+    elevation_min_raw = models.FloatField(blank=True, null=True)  # m
 
-    time_at_HR = models.TextField(blank=True, null=True)  # JSON string of time at HR zones
-    time_at_pace = models.TextField(blank=True, null=True)  # JSON string of time at HR/pace zones
+    time_at_HR_raw = models.TextField(blank=True, null=True)  # JSON string of time at HR zones
+    time_at_pace_raw = models.TextField(blank=True, null=True)  # JSON string of time at HR/pace zones
 
-    calories = models.IntegerField(blank=True, null=True)  # Estimated calories burned
+    calories_raw = models.IntegerField(blank=True, null=True)  # Estimated calories burned
+
+
+    # TODO: check bellow datetime stuff
+
+    @property
+    def start_datetime_utc(self):
+        return self.start_datetime_utc_raw or getattr(self.auto, 'start_datetime_utc', None)
+
+    @property
+    def start_timezone(self):
+        return self.start_timezone_raw or getattr(self.auto, 'start_timezone', 'UTC')
+
+    @property
+    def start_datetime(self):
+        """Return local naive time based on start_datetime_utc + timezone."""
+        utc_dt = self.start_datetime_utc_raw
+
+        try:
+            tz = pytz.timezone(self.start_timezone)
+        except Exception:
+            tz = pytz.UTC
+
+        return utc_dt.astimezone(tz).replace(tzinfo=None)
+
+    @start_datetime.setter
+    def start_datetime(self, naive_local_dt):
+        """Convert local naive datetime to UTC and save in start_datetime_utc."""
+        try:
+            tz = pytz.timezone(self.start_timezone or 'UTC')
+        except Exception:
+            tz = pytz.UTC
+
+        # Ensure it's naive
+        naive_local_dt = naive_local_dt.replace(tzinfo=None)
+        # Localize and convert to UTC
+        local_dt = tz.localize(naive_local_dt, is_dst=None)
+        self.start_datetime_utc_raw = local_dt.astimezone(pytz.UTC)
+
+    @property
+    def auto_data(self):
+        """Safe access to ActivityAuto if it exists."""
+        return getattr(self, 'activityauto', None)
+
+    # Generic property access
+    def __getattr__(self, name):
+        """
+        Fallback field logic:
+        - First try: self.<name>_raw (manually set raw field on current model)
+        - Then try: self.auto.<name>
+        """
+        # Ignore special methods and private fields
+        if name.startswith('__') or name.endswith('__') or name.startswith('_'):
+            raise AttributeError(name)
+
+        # 1. Check for self.<name>_raw
+        raw_attr = f"{name}_raw"
+        try:
+            value = object.__getattribute__(self, raw_attr)
+            if value is not None and value != '':
+                return value
+        except AttributeError:
+            pass  # raw field doesn't exist
+
+        # 2. Fallback to auto.<name>
+        auto = getattr(self, 'auto', None)
+        if auto and hasattr(auto, name):
+            return getattr(auto, name)
+
+        raise AttributeError(f"{name} not found in `{self.__class__.__name__}` or its `auto` fallback.")
+
+    def __setattr__(self, name, value):
+        """
+        Redirect all writes to self.<name>_raw if it exists.
+        Only internal attributes and declared fields are writable.
+        Prevent writing to auto or undeclared fields.
+        """
+
+        # Allow setting internal/private attributes directly
+        if name.startswith('_') or name in self.__class__.__dict__:
+            super().__setattr__(name, value)
+            return
+
+        # Raw field name
+        raw_field = f"{name}_raw"
+
+        # Get list of fields defined on the model
+        field_names = [f.name for f in self._meta.get_fields()]
+
+        # If a corresponding raw field exists, write to that
+        if raw_field in field_names:
+            super().__setattr__(raw_field, value)
+            return
+
+        # If the field itself exists (not a computed/fallback field), allow direct set (optional)
+        if name in field_names:
+            super().__setattr__(name, value)
+            return
+
+        # Otherwise, block unknown assignments
+        raise AttributeError(f"Cannot set unknown attribute '{name}' (expected '{raw_field}' to exist)")
+
+
 
     def get_value(self, field_name, default):
         value = getattr(self, field_name, None)
@@ -326,131 +428,131 @@ class Illness(models.Model):
 
 
 
-class ActivityViewModel:
-    """This ActivityViewModel class is a wrapper or proxy for two Django model instances: one 
-    called activity and another optional one called activity_auto. It provides a unified 
-    interface for accessing and modifying fields, falling back to activity_auto when a field 
-    isn't available or populated on activity.
-    """
-    def __init__(self, activity=None, activity_auto=None):
-        self._activity = activity
-        self._auto = activity_auto
+# class ActivityViewModel:
+#     """This ActivityViewModel class is a wrapper or proxy for two Django model instances: one 
+#     called activity and another optional one called activity_auto. It provides a unified 
+#     interface for accessing and modifying fields, falling back to activity_auto when a field 
+#     isn't available or populated on activity.
+#     """
+#     def __init__(self, activity=None, activity_auto=None):
+#         self._activity = activity
+#         self._auto = activity_auto
 
 
-    # Make pk accessable
-    @property
-    def pk(self):
-        return self._activity.pk
+#     # Make pk accessable
+#     @property
+#     def pk(self):
+#         return self._activity.pk
 
 
-    # Expose Django's model metadata for introspection purposes (e.g., field names, model name).
-    @property
-    def _meta(self):
-        return self._activity._meta
+#     # Expose Django's model metadata for introspection purposes (e.g., field names, model name).
+#     @property
+#     def _meta(self):
+#         return self._activity._meta
 
 
-    def __getattr__(self, name):
-        """Dynamic Attribute Access"""
-        # Search: ActivityViewModel properties
-        if hasattr(self.__class__, name):
-            attr = getattr(self.__class__, name)
-            if isinstance(attr, property):
-                return attr.__get__(self)  # call property getter explicitly
-            # If it's something else (method or class attr), raise error to let normal lookup handle it
-            raise AttributeError
+#     def __getattr__(self, name):
+#         """Dynamic Attribute Access"""
+#         # Search: ActivityViewModel properties
+#         if hasattr(self.__class__, name):
+#             attr = getattr(self.__class__, name)
+#             if isinstance(attr, property):
+#                 return attr.__get__(self)  # call property getter explicitly
+#             # If it's something else (method or class attr), raise error to let normal lookup handle it
+#             raise AttributeError
         
-        # Search: _activity
-        if hasattr(self._activity, name):
-            value = getattr(self._activity, name)
-            # If the value is a related field, return all related objects
-            if hasattr(value, 'all') and callable(value.all):
-                return value.all()
-            if value is not None and value != '':
-                return value
+#         # Search: _activity
+#         if hasattr(self._activity, name):
+#             value = getattr(self._activity, name)
+#             # If the value is a related field, return all related objects
+#             if hasattr(value, 'all') and callable(value.all):
+#                 return value.all()
+#             if value is not None and value != '':
+#                 return value
         
-        # Search: activity_auto
-        if self._auto and hasattr(self._auto, name):
-            value = getattr(self._auto, name)
-            if hasattr(value, 'all') and callable(value.all):
-                return value.all()
-            return value
+#         # Search: activity_auto
+#         if self._auto and hasattr(self._auto, name):
+#             value = getattr(self._auto, name)
+#             if hasattr(value, 'all') and callable(value.all):
+#                 return value.all()
+#             return value
         
-        # None of the above
-        return None
-        #raise AttributeError(f"{name} not found in either Activity or ActivityAuto")
+#         # None of the above
+#         return None
+#         #raise AttributeError(f"{name} not found in either Activity or ActivityAuto")
 
 
-    def __setattr__(self, name, value):
-        """Dynamic Attribute Setting"""
+#     def __setattr__(self, name, value):
+#         """Dynamic Attribute Setting"""
 
-        #Set on: properties like _xxxx on ActivityViewModel
-        if name.startswith('_'):
-            super().__setattr__(name, value)
+#         #Set on: properties like _xxxx on ActivityViewModel
+#         if name.startswith('_'):
+#             super().__setattr__(name, value)
 
-        # Set on: ActivityViewModel
-        elif isinstance(getattr(self.__class__, name, None), property):
-            object.__setattr__(self, name, value)  # this will trigger @property.setter
+#         # Set on: ActivityViewModel
+#         elif isinstance(getattr(self.__class__, name, None), property):
+#             object.__setattr__(self, name, value)  # this will trigger @property.setter
         
-        # Set on: _activity
-        elif hasattr(self._activity, name):
-            setattr(self._activity, name, value)
+#         # Set on: _activity
+#         elif hasattr(self._activity, name):
+#             setattr(self._activity, name, value)
 
-        # None of the Above
-        else:
-            raise AttributeError(f"Can't set unknown field {name}")
+#         # None of the Above
+#         else:
+#             raise AttributeError(f"Can't set unknown field {name}")
 
-    def save(self):
-        self._activity.save()
+#     def save(self):
+#         self._activity.save()
 
 
-    @property
-    def start_datetime_utc(self):
-        """Convert stored UTC start_datetime to the stored timezone."""
-        return getattr(self._activity, "start_datetime_utc", None) or getattr(self._auto, "start_datetime_utc", None) or None
+#     @property
+#     def start_datetime_utc(self):
+#         """Convert stored UTC start_datetime to the stored timezone."""
+#         return getattr(self._activity, "start_datetime_utc", None) or getattr(self._auto, "start_datetime_utc", None) or None
         
 
-    ## start_datetime
-    @property
-    def start_datetime(self):
-        """Convert stored UTC start_datetime to the stored timezone."""
-        # Get stored datetime and timezone
-        utc_dt = getattr(self._activity, "start_datetime_utc", None) or getattr(self._auto, "start_datetime_utc", None) or None
-        if not utc_dt:
-            return None  # or some default datetime if you want
+#     ## start_datetime
+#     @property
+#     def start_datetime(self):
+#         """Convert stored UTC start_datetime to the stored timezone."""
+#         # Get stored datetime and timezone
+#         utc_dt = getattr(self._activity, "start_datetime_utc", None) or getattr(self._auto, "start_datetime_utc", None) or None
+#         if not utc_dt:
+#             return None  # or some default datetime if you want
         
-        try:
-            tz_name = (
-                getattr(self._activity, "start_timezone", None)
-                or getattr(self._auto, "start_timezone", None)
-                or "UTC"
-            )
-            tz = pytz.timezone(tz_name)
-        except Exception:
-            tz = pytz.UTC
+#         try:
+#             tz_name = (
+#                 getattr(self._activity, "start_timezone", None)
+#                 or getattr(self._auto, "start_timezone", None)
+#                 or "UTC"
+#             )
+#             tz = pytz.timezone(tz_name)
+#         except Exception:
+#             tz = pytz.UTC
             
-        # Convert from UTC to local timezone-aware datetime
-        local_dt = utc_dt.astimezone(tz)
+#         # Convert from UTC to local timezone-aware datetime
+#         local_dt = utc_dt.astimezone(tz)
 
-        # Return naive local time (for GUI use)
-        return local_dt.replace(tzinfo=None)
+#         # Return naive local time (for GUI use)
+#         return local_dt.replace(tzinfo=None)
     
-    @start_datetime.setter
-    def start_datetime(self, naive_local_dt):
-        """Takes a local datetime and stores it as UTC + sets timezone."""
-        try:
-            tz = pytz.timezone(self._activity.start_timezone)
-        except Exception:
-            tz = pytz.UTC
+#     @start_datetime.setter
+#     def start_datetime(self, naive_local_dt):
+#         """Takes a local datetime and stores it as UTC + sets timezone."""
+#         try:
+#             tz = pytz.timezone(self._activity.start_timezone)
+#         except Exception:
+#             tz = pytz.UTC
 
-        # Ensure it's naive
-        naive_local_dt = naive_local_dt.replace(tzinfo=None)
+#         # Ensure it's naive
+#         naive_local_dt = naive_local_dt.replace(tzinfo=None)
 
-        # Localize based on timezone (adds tzinfo while preserving clock time)
-        aware_local_dt = tz.localize(naive_local_dt, is_dst=None)
+#         # Localize based on timezone (adds tzinfo while preserving clock time)
+#         aware_local_dt = tz.localize(naive_local_dt, is_dst=None)
 
-        # Convert to UTC and store
-        self._activity.start_datetime_utc = aware_local_dt.astimezone(pytz.UTC)
-        print()
+#         # Convert to UTC and store
+#         self._activity.start_datetime_utc = aware_local_dt.astimezone(pytz.UTC)
+#         print()
 
 
 

@@ -52,21 +52,21 @@
         }
     </style>
 
-/<!-- Header -->
+<!-- Header -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>All Activities</h1>
     <div>
-        <a href="{% url 'activity_add' %}" class="btn btn-primary">Add Activity</a>
+        
     </div>
 </div>
 
 <!-- Date selector -->
 <form id="date-form" method="post">
-    {% csrf_token %}
-    <div class="form-group">
-        {{ form.date.label_tag }}
-        {{ form.date }}
-    </div>
+  {% csrf_token %}
+  <div class="input-group">
+    {{ form.date }}
+    <button type="submit" class="btn btn-primary">Refresh</button>
+  </div>
 </form>
 
 <!-- Totals -->

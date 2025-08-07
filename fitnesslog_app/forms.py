@@ -1,7 +1,7 @@
 # forms.py
 from django import forms
 import pytz
-from .models import ActivityViewModel, Gear, Sport, HRzones, Activity, Injury, Illness
+from .models import Gear, Sport, HRzones, Activity, Injury, Illness
 from django.utils.safestring import mark_safe
 from django.forms import ChoiceField
 from django.forms.models import fields_for_model
