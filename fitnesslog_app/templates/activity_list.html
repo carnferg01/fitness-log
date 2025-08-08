@@ -49,15 +49,15 @@
         <tbody>
         {% for a in activities %}
             <tr class="align-middle">
-                <td style="background-color: {{ a.sport.colour }}; width: 1.5rem;"></td>
-                <td>{{ a.sport.name }}</td>
-                <td>{{ a.activity_type_raw }}</td>
-                <td>{{ a.start_datetime_utc|date:"Y-m-d H:i:s" }}</td>
-                <td>{{ a.start_timezone }}</td>
-                <td>{{ a.time_moving_raw }}</td>
-                <td>{{ a.distance_raw }}</td>
-                <td>{{ a.elevation_gain_raw }}</td>
-                <td>{{ a.calories_raw }}</td>
+                <td style="background-color: {{ a.sport_view.colour }}; width: 1.5rem;"></td>
+                <td>{{ a.sport_view.name }}</td>
+                <td>{{ a.activity_type_view }}</td>
+                <td>{{ a.start_datetime_utc_view|date:"Y-m-d H:i:s" }}</td>
+                <td>{{ a.start_timezone_view }}</td>
+                <td>{{ a.time_moving_view }}</td>
+                <td>{{ a.distance_view }}</td>
+                <td>{{ a.elevation_gain_view }}</td>
+                <td>{{ a.calories_view }}</td>
                 <td>
                     <a href="{% url 'activity_edit' a.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
                 </td>

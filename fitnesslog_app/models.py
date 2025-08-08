@@ -146,31 +146,31 @@ class Activity(models.Model):
 
     # TODO: check bellow datetime stuff
 
-    @property
-    def start_datetime_utc(self):
-        return self.start_datetime_utc or getattr(self.auto, 'start_datetime_utc', None)
+    # @property
+    # def start_datetime_utc(self):
+    #     return self.start_datetime_utc or getattr(self.activityauto, 'start_datetime_utc', None)
 
     @property
-    def start_timezone(self):
-        return self.start_timezone or getattr(self.auto, 'start_timezone', 'UTC')
+    def start_timezone_view(self):
+        return self.start_timezone or getattr(self.activityauto, 'start_timezone', 'UTC')
 
     @property
-    def start_datetime(self):
+    def start_datetime_view(self):
         """Return local naive time based on start_datetime_utc + timezone."""
-        utc_dt = self.start_datetime_utc
+        utc_dt = self.start_datetime_utc or getattr(self.activityauto, 'start_datetime_utc', None)
 
         try:
-            tz = pytz.timezone(self.start_timezone)
+            tz = pytz.timezone(self.start_timezone_view)
         except Exception:
             tz = pytz.UTC
 
         return utc_dt.astimezone(tz).replace(tzinfo=None)
 
-    @start_datetime.setter
-    def start_datetime(self, naive_local_dt):
+    @start_datetime_view.setter
+    def start_datetime_view(self, naive_local_dt):
         """Convert local naive datetime to UTC and save in start_datetime_utc."""
         try:
-            tz = pytz.timezone(self.start_timezone or 'UTC')
+            tz = pytz.timezone(self.start_timezone_view or 'UTC')
         except Exception:
             tz = pytz.UTC
 
@@ -181,69 +181,64 @@ class Activity(models.Model):
         self.start_datetime_utc = local_dt.astimezone(pytz.UTC)
 
     @property
-    def auto_data(self):
+    def auto_data_view(self):
         """Safe access to ActivityAuto if it exists."""
         return getattr(self, 'activityauto', None)
 
     # Generic property access
     def __getattr__(self, name):
         """
-        Fallback field logic:
-        - First try: self.<name> (manually set raw field on current model)
-        - Then try: self.activityauto.<name>
+        Custom attribute access:
+        - If name ends with '_view', try fallback (self.<base>, then activityauto.<base>)
+        - Otherwise, only try self.<name>
         """
         if name.startswith('__') or name.endswith('__') or name.startswith('_'):
             raise AttributeError(name)
 
-        # 1. Check for self.<name>
-        raw_attr = f"{name}"
+        is_view = name.endswith('_view')
+        base_name = name[:-5] if is_view else name  # remove '_view' if present
+
+        # 1. Try self.<base_name>
         try:
-            value = object.__getattribute__(self, raw_attr)
-            if value is not None and value != '':
+            value = object.__getattribute__(self, base_name)
+            if value not in (None, '', [], {}):
                 return value
         except AttributeError:
             pass
 
-        # 2. Fallback to activityauto.<name> using safe access
-        try:
-            auto = object.__getattribute__(self, 'activityauto')
-            if auto and hasattr(auto, name):
-                return getattr(auto, name)
-        except AttributeError:
-            pass
+        # 2. If '_view', fallback to activityauto.<base_name>
+        if is_view:
+            try:
+                auto = object.__getattribute__(self, 'activityauto')
+                if auto and hasattr(auto, base_name):
+                    return getattr(auto, base_name)
+            except AttributeError:
+                pass
 
         raise AttributeError(f"{name} not found in `{self.__class__.__name__}` or its `activityauto` fallback.")
 
     def __setattr__(self, name, value):
         """
-        Redirect all writes to self.<name> if it exists.
-        Only internal attributes and declared fields are writable.
-        Prevent writing to auto or undeclared fields.
+        Custom attribute setting:
+        - If name ends with '_view', strip and redirect to base field
+        - Only allow setting fields declared on the model or internal attributes
         """
-
-        # Allow setting internal/private attributes directly
+        # Internal/private attributes set directly
         if name.startswith('_') or name in self.__class__.__dict__:
             super().__setattr__(name, value)
             return
 
-        # Raw field name
-        raw_field = f"{name}"
+        # Handle _view suffix
+        if name.endswith('_view'):
+            name = name[:-5]  # remove '_view'
 
-        # Get list of fields defined on the model
         field_names = [f.name for f in self._meta.get_fields()]
 
-        # If a corresponding raw field exists, write to that
-        if raw_field in field_names:
-            super().__setattr__(raw_field, value)
-            return
-
-        # If the field itself exists (not a computed/fallback field), allow direct set (optional)
         if name in field_names:
             super().__setattr__(name, value)
             return
 
-        # Otherwise, block unknown assignments
-        raise AttributeError(f"Cannot set unknown attribute '{name}' (expected '{raw_field}' to exist)")
+        raise AttributeError(f"Cannot set unknown attribute '{name}' (expected model field '{name}')")
 
 
 
