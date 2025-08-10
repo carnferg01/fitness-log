@@ -169,108 +169,118 @@ class HRzonesForm(forms.ModelForm):
 class ActivityForm(forms.ModelForm):
     required_fields = [
         'sport',
-        #'start_datetime',
-        #'start_timezone',
+        'start_datetime_local',
+        'start_timezone',
         'time_elapsed',
     ]
 
     class Meta:
         model = Activity
-        fields = '__all__'
+        fields = [
+            'sport',
+            'activity_type',
+            'location',
+            'intensity',
+            'feeling',
+            'terrain',
+            'gear',
+            'note',
+            'start_timezone',
+            # 'start_datetime_utc'
+            'time_elapsed',
+            'time_tracked',
+            'time_moving',
+            'distance',
+            'elevation_gain',
+            'elevation_loss',
+            'elevation_max',
+            'elevation_min',
+            'time_at_HR',
+            'time_at_pace',
+            'calories',
+        ]
 
-    def __init__(self, *args, activity=None, **kwargs):
+    def __init__(self, *args, **kwargs): # activity=None,
         super().__init__(*args, **kwargs)
-        self.activity = activity
-
-        # This uses Django's fields_for_model() helper to generate form fields for the listed fields on the Activity model.
-        #activity = vm._activity if vm and vm._activity else Activity()
-        #self.fields.update(fields_for_model(Activity, fields=field_names))
 
         # Add virtual form field(s) manually
-        self.fields['start_datetime'] = forms.DateTimeField(
-            label='Start Time (local to run)',
-            required=True,
-            widget=forms.DateTimeInput(format='%Y-%m-%d %H:%M:%S'),
-            input_formats=['%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S'],  # add formats your app might receive
+        self.fields['start_datetime_local'] = forms.DateTimeField(
+            label='Start datetime (local to run)',
+            widget=forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local'}),
+            input_formats=['%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M:%S'],  # add formats your app might receive
         )
+        if self.instance and hasattr(self.instance, 'start_datetime_local'):
+            self.fields['start_datetime_local'].initial = (
+                self.instance.start_datetime_local.strftime('%Y-%m-%dT%H:%M')
+                if self.instance.start_datetime_local else None
+            )
+            
+        # Adjust queryset for gear without replacing the field
+        #self.fields['gear'].queryset = Gear.objects.filter(retired=False)
 
-        # Explicitly define gear field
-        self.fields['gear'] = forms.ModelMultipleChoiceField(
-            queryset=Gear.objects.filter(retired=False),
-            required=False,
-            widget=forms.SelectMultiple
-        )
+        
 
-        self._inject_fallback_field_cleaners()
+        # Make sure Django doesn't do its own required check yet
+        for field_name in self.required_fields:
+            if field_name in self.fields:
+                self.fields[field_name].required = False
 
-        # When not processing a POST request (is unbound), set initial values for the form fields from the view model.
-        # if activity and not self.is_bound:
-        #     for name in self.fields:
-        #         val = getattr(activity, name, None)
+    def clean(self):
+        cleaned_data = super().clean()
+        activity = self.instance
+        auto = getattr(activity, 'activityauto', None)
 
-        #         #
-        #         if hasattr(val, 'all') and callable(val.all):
-        #             val = list(val.all())
+        for field_name in self.required_fields:
+            form_value = cleaned_data.get(field_name)
+            auto_value = getattr(auto, field_name, None) if auto else None
 
-        #         # Convert datetime to string format the widget expects
-        #         if name == 'start_datetime' and val:
-        #             val = val.strftime('%Y-%m-%d %H:%M:%S') if val else None
-                
-        #         #
-        #         if val is None or val == '':
-        #             fallback = getattr(activity.activityauto, name, None) if activity.activityauto else None
-        #             if hasattr(fallback, 'all') and callable(fallback.all):
-        #                 fallback = list(fallback.all())
-        #             val = fallback
-                    
-        #         self.initial[name] = val
-
-    def _inject_fallback_field_cleaners(self):
-        """
-        For each required field (e.g. 'sport'), dynamically attach a clean_<raw_field>()
-        that validates whether the computed fallback property has a value.
-        """
-        for logical_field in self.required_fields:
-            raw_field = f"{logical_field}_raw"
-            if raw_field in self.fields:
-                setattr(
-                    self,
-                    f'clean_{raw_field}',
-                    self._make_fallback_cleaner(logical_field, raw_field)
+            if form_value in (None, '', [], {}) and auto_value in (None, '', [], {}):
+                # Add standard 'required' error
+                self.add_error(
+                    field_name,
+                    forms.ValidationError(self.fields[field_name].error_messages['required'])
                 )
 
-    def _make_fallback_cleaner(self, logical_field, raw_field):
-        """
-        Create a per-field clean method that validates whether the logical field
-        (which uses fallback resolution) has a value.
-        """
-        def cleaner():
-            value = getattr(self.instance, logical_field, None)
-            if value in (None, '', [], {}):
-                raise ValidationError(
-                    f"{logical_field.replace('_', ' ').capitalize()} must be set either in this activity or in fallback data."
-                )
-            return self.cleaned_data.get(raw_field)
-        return cleaner
-
-    def save(self):
-        ### TODO: Make the following more efficent
-        # Set start_timezone before start_datetime
-        if 'start_timezone' in self.cleaned_data:
-            setattr(self.activity, 'start_timezone', self.cleaned_data['start_timezone'])
-        if 'start_datetime' in self.cleaned_data:
-            setattr(self.activity, 'start_datetime', self.cleaned_data['start_datetime'])
+        return cleaned_data
     
-        for name in self.fields:
-            value = self.cleaned_data[name]
-            # Special handling for ManyToMany
-            if name == 'gear':
-                if hasattr(self.activity._activity.gear, 'set'):
-                    self.activity._activity.gear.set(value)
-            else:
-                setattr(self.activity, name, value)
-        self.activity.save()
-        return self.activity
+    def clean_start_datetime_local(self):
+        dt = self.cleaned_data.get('start_datetime_local')
+        if dt:
+            # Zero out seconds and microseconds
+            dt = dt.replace(second=0, microsecond=0)
+        return dt
+    
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        # Set start_timezone and start_datetime_view first
+        if 'start_timezone' in self.cleaned_data:
+            instance.start_timezone = self.cleaned_data['start_timezone']
+        if 'start_datetime_local' in self.cleaned_data:
+            instance.start_datetime_local = self.cleaned_data['start_datetime_local']
+
+
+        # # Assign other fields
+        # for field_name, value in self.cleaned_data.items():
+        #     if field_name in ('start_timezone', 'start_datetime_local'):
+        #         continue
+
+        #     field = self._meta.model._meta.get_field(field_name)
+        #     if field.many_to_many:
+        #         # Store the m2m data for after saving
+        #         m2m_data[field_name] = value
+        #     else:
+        #         view_name = f"{field_name}_view"
+        #         if hasattr(type(instance), view_name):
+        #             setattr(instance, view_name, value)
+        #         else:
+        #             setattr(instance, field_name, value)
+
+        if commit:
+            instance.save()
+            self.save_m2m()
+
+        return instance
 
 
 

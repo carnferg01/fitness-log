@@ -5,80 +5,91 @@
 {% block content %}
 
 <style>
-    body { font-family: Arial, sans-serif; margin: 2em; }
-    .form-group { margin-bottom: 1em; }
+    .activity {
+        margin-bottom: 1rem;
+    }
+    .activity-row {
+        display: flex;
+        justify-content: space-between;
+        background-color: #e0e0e0;
+        padding: 0.5rem 0.75rem 0.5rem 0.75rem;
+        border-radius: 0.375rem 0.375rem 0 0;
+    }
+    .activity-row .left {
+        display: flex;
+        align-items: center;
+    }
+    .activity .left div:not(.square) {
+        padding-left: 0.75rem; /* or adjust to align */
+    }
+    .square {
+        width: 1rem;
+        height: 1rem;
+        border-radius: 2px;
+    }
+
+    /* Other rows - lighter shade */
+    .activity .indent {
+        background-color: #f5f5f5; /* lighter gray */
+        padding: 6px 10px 6px 2.5rem; /* keep indent spacing */
+    }
+    .activity .indent:last-of-type {
+        border-radius: 0 0 0.375rem 0.375rem; /* round bottom corners */
+        background-color: #f5f5f5;
+    }
+
+    /* Separator styles */
+    .separator-container {
+        display: flex;
+        align-items: center;
+        margin: 30px 0;
+        width: 100%;
+    }
+    .separator-line {
+        flex-grow: 1;
+        height: 2px;
+        background-color: #ccc;
+    }
+    .separator-label {
+        padding: 0 10px;
+        white-space: nowrap;
+        font-size: 0.9rem;
+        color: #666;
+    }
 </style>
-
-<style>
-        .activity {
-            margin-bottom: 20px; /* space between each activity */
-        }
-        .row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .row .left {
-            display: flex;
-            align-items: center;
-        }
-        .square {
-            width: 16px;
-            height: 16px;
-            background-color: #4CAF50; /* change color as needed */
-            margin-right: 10px;
-        }
-        .indent {
-            padding-left: 2em; /* tab-like indent */
-        }
-
-        /* Separator styles */
-        .separator-container {
-            display: flex;
-            align-items: center;
-            margin: 30px 0;
-            width: 100%;
-        }
-        .separator-line {
-            flex-grow: 1;
-            height: 2px;
-            background-color: #ccc;
-        }
-        .separator-label {
-            padding: 0 10px;
-            white-space: nowrap;
-            font-size: 0.9em;
-            color: #666;
-        }
-    </style>
 
 <!-- Header -->
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>All Activities</h1>
+    <h1>My day</h1>
     <div>
-        
+        <form id="date-form" method="post">
+        {% csrf_token %}
+        <div class="input-group">
+            {{ form.date }}
+            <button type="submit" class="btn btn-primary">Refresh</button>
+        </div>
+        </form>
     </div>
 </div>
 
 <!-- Date selector -->
-<form id="date-form" method="post">
-  {% csrf_token %}
-  <div class="input-group">
-    {{ form.date }}
-    <button type="submit" class="btn btn-primary">Refresh</button>
-  </div>
-</form>
+
 
 <!-- Totals -->
- {% if day_stats %}
-    <h2>Results:</h2>
-    <p>{{ data.message }}</p>
-    <p>{{ data.extra }}</p>
-{% endif %}
+<p>Total Distance: {{ day_stats.total_distance }}</p>
+<p>Total Climb: {{ day_stats.total_climb }}</p>
+<p>Session Count: {{ day_stats.total_session_count }}</p>
+<p>Load: {{ day_stats.load }}</p>
 
+<div class="mt-4"></div>
 
 <!-- Activities -->
-{% for activity in day_activities %}
+<div class="separator-container">
+    <div class="separator-line"></div>
+    <div class="separator-label">Day start</div>
+    <div class="separator-line"></div>
+</div>
+{% for item in enhanced_day_activities %}
     {% if item.gap_hours %}
         <div class="separator-container">
             <div class="separator-line"></div>
@@ -89,22 +100,31 @@
 
     <div class="activity">
         <!-- Row 1 -->
-        <div class="row">
+        <div class="activity-row">
             <div class="left">
-                <div class="square"></div>
-                <div>{{ activity.sport }}</div>
-                <div style="margin-left: 10px;">{{ activity.load }}</div>
+                {% if item.activity.sport %}
+                <div class="square" style="background-color: {{ item.activity.sport.colour }};"></div>
+                {% else %}
+                <div class="square" style="background-color: #000;"></div>
+                {% endif %}
+                <div>{{ item.activity.sport_view }}</div>
+                {% comment %} <div style="margin-left: 10px;">{{ activity.load }}</div> {% endcomment %}
             </div>
-            <div>{{ activity.start_datetime }}</div>
+            <div>{{ item.activity.start_datetime_local_view|time:"H:i" }}</div>
         </div>
 
         <!-- Row 2 -->
-        <div class="indent">{{ activity.time_elapsed }}</div>
+        <div class="indent">{{ item.activity.time_elapsed_view }}, {{ item.activity.distance_view }}km +{{ item.activity.elevation_gain_view }}m</div>
 
         <!-- Row 3 -->
-        <div class="indent">{{ activity.total_distance }} km + {{ activity.total_climb }} m</div>
+        <div class="indent">{{ item.activity.notes_view }}</div>
     </div>
 {% endfor %}
+<div class="separator-container">
+    <div class="separator-line"></div>
+    <div class="separator-label">Day end</div>
+    <div class="separator-line"></div>
+</div>
 
 
 
@@ -119,7 +139,7 @@
             form.submit();  // submit once with today's date
         }
 
-        dateInput.addEventListener("change", function () {
+        dateInput.addEventListener("blur", function () {
             form.submit();  // also submit on manual change
         });
     });

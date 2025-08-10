@@ -26,7 +26,7 @@ def summary(request):
     return render(request, 'summary.html')
 
 def summary_myday(request):
-    selected_date = datetime.now().date()  # Default to today
+    selected_date = None
     day_stats = None
     day_activities = []
     enhanced_day_activities = []
@@ -52,9 +52,9 @@ def summary_myday(request):
                 start_dt = datetime.combine(selected_date, time.min).replace(tzinfo=timezone.utc)
                 end_dt = datetime.combine(selected_date + timedelta(days=1), time.min).replace(tzinfo=timezone.utc)
 
-                # Query objects where timestamp is on that date in UTC
+                # Query objects where start_datetime_utc is on that date in UTC
                 
-                day_activities = ActivityViewModel.objects.filter(timestamp__gte=start_dt, timestamp__lt=end_dt)
+                day_activities = Activity.objects.filter(start_datetime_utc__gte=start_dt, start_datetime_utc__lt=end_dt)
 
             except (ValueError, TypeError):
                 pass
@@ -64,8 +64,11 @@ def summary_myday(request):
             enhanced_day_activities = []
             prev_end_time = None
             for activity in day_activities:
-                start = activity.start_datetime
-                end = start + activity.time_elapsed
+                start = activity.start_datetime_utc
+                try:
+                    end = start + activity.time_elapsed
+                except TypeError:
+                    end = start  # Default to 1 hour if time_elapsed is not set
 
                 gap_hours = None
                 if prev_end_time:
@@ -83,7 +86,7 @@ def summary_myday(request):
                 prev_end_time = end
 
     else:
-        form = MydayForm()  # empty form on first load
+        form = MydayForm()  # TODO : include date
 
     return render(request, 'summary_myday.html', {'form':form, 'selected_date': selected_date, 'day_stats': day_stats, 'enhanced_day_activities': enhanced_day_activities})
 
@@ -296,15 +299,21 @@ def activity_add(request):
 
 
 def activity_edit(request, pk):
+    # TODO: gear saving/viewing
+    # time at hr
+    # time at pace
+    # test required fields
+
+
     activity = get_object_or_404(Activity.objects.select_related('activityauto'), pk=pk)
 
     if request.method == 'POST':
-        form = ActivityForm(request.POST, activity=activity)
+        form = ActivityForm(request.POST, instance=activity)
         if form.is_valid():
             form.save()
             return redirect('activity_list')
     else:
-        form = ActivityForm(activity=activity)
+        form = ActivityForm(instance=activity)
 
     return render(request, 'activity_edit.html', {'form': form, 'activity': activity})
 

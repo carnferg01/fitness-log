@@ -147,15 +147,19 @@ class Activity(models.Model):
     # TODO: check bellow datetime stuff
 
     # @property
-    # def start_datetime_utc(self):
+    # def start_datetime_utc_view(self):
     #     return self.start_datetime_utc or getattr(self.activityauto, 'start_datetime_utc', None)
 
-    @property
-    def start_timezone_view(self):
-        return self.start_timezone or getattr(self.activityauto, 'start_timezone', 'UTC')
+    # @property
+    # def start_timezone_view(self):
+    #     return self.start_timezone or getattr(self.activityauto, 'start_timezone', 'UTC')
+
+    # @start_timezone_view.setter
+    # def start_timezone_view(self, timezone_name):
+    #     self.start_timezone = timezone_name
 
     @property
-    def start_datetime_view(self):
+    def start_datetime_local_view(self):
         """Return local naive time based on start_datetime_utc + timezone."""
         utc_dt = self.start_datetime_utc or getattr(self.activityauto, 'start_datetime_utc', None)
 
@@ -166,8 +170,21 @@ class Activity(models.Model):
 
         return utc_dt.astimezone(tz).replace(tzinfo=None)
 
-    @start_datetime_view.setter
-    def start_datetime_view(self, naive_local_dt):
+
+    @property
+    def start_datetime_local(self):
+        """Return local naive time based on start_datetime_utc + timezone."""
+        utc_dt = self.start_datetime_utc
+
+        try:
+            tz = pytz.timezone(self.start_timezone_view)
+        except Exception:
+            tz = pytz.UTC
+
+        return utc_dt.astimezone(tz).replace(tzinfo=None)
+
+    @start_datetime_local.setter
+    def start_datetime_local(self, naive_local_dt):
         """Convert local naive datetime to UTC and save in start_datetime_utc."""
         try:
             tz = pytz.timezone(self.start_timezone_view or 'UTC')
@@ -215,7 +232,8 @@ class Activity(models.Model):
             except AttributeError:
                 pass
 
-        raise AttributeError(f"{name} not found in `{self.__class__.__name__}` or its `activityauto` fallback.")
+        return '' # TODO: check what happens to activity list if this returns None
+        # raise AttributeError(f"{name} not found in `{self.__class__.__name__}` or its `activityauto` fallback.")
 
     def __setattr__(self, name, value):
         """
