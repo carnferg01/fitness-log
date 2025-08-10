@@ -61,6 +61,8 @@
 <!-- Header -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>My day</h1>
+
+    <!-- Date selector -->
     <div>
         <form id="date-form" method="post">
         {% csrf_token %}
@@ -72,14 +74,17 @@
     </div>
 </div>
 
-<!-- Date selector -->
-
-
-<!-- Totals -->
-<p>Total Distance: {{ day_stats.total_distance }}</p>
-<p>Total Climb: {{ day_stats.total_climb }}</p>
-<p>Session Count: {{ day_stats.total_session_count }}</p>
-<p>Load: {{ day_stats.load }}</p>
+<div style="display: flex; align-items: stretch; justify-content: space-between; gap: 1em;">
+    <!-- Totals -->
+  <div style="flex-shrink: 0;">
+    <p>Total Distance: {{ day_stats.total_distance }}</p>
+    <p>Total Climb: {{ day_stats.total_climb }}</p>
+    <p>Session Count: {{ day_stats.total_session_count }}</p>
+    <p>Load: {{ day_stats.load }}</p>
+  </div>
+    <!-- HR graph -->
+  <div style="background-color: #ccc; width: 30em; display: flex; justify-content: center; align-items: center; ">HR graph</div>
+</div>
 
 <div class="mt-4"></div>
 
